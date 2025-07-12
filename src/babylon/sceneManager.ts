@@ -51,6 +51,52 @@ export class SceneManager {
     // Initialize empty - call initialize() after construction
   }
 
+  /**
+   * Applies auto-scaling to GLB models to fit within reasonable bounds
+   * @param mesh The root mesh of the GLB model
+   * @param sceneObject The scene object containing scale information
+   */
+  private applyGLBAutoScaling(mesh: Mesh, sceneObject: SceneObject): void {
+    // Force update of world matrix to get accurate bounds
+    mesh.computeWorldMatrix(true);
+    
+    // Get the bounding info
+    const boundingInfo = mesh.getBoundingInfo();
+    const size = boundingInfo.boundingBox.maximumWorld.subtract(boundingInfo.boundingBox.minimumWorld);
+    
+    // Find the maximum dimension
+    const maxDimension = Math.max(size.x, size.y, size.z);
+    
+    // Target size for furniture objects (2 units is reasonable for most furniture)
+    const targetSize = 2.0;
+    
+    console.log(`📏 GLB model "${sceneObject.id}" dimensions: ${size.x.toFixed(3)} x ${size.y.toFixed(3)} x ${size.z.toFixed(3)}`);
+    console.log(`📏 Max dimension: ${maxDimension.toFixed(3)}`);
+    
+    // Avoid division by zero for extremely small objects
+    if (maxDimension < 0.001) {
+      console.warn('⚠️ GLB object has extremely small dimensions, using default scale');
+      mesh.scaling = sceneObject.scale.clone();
+      return;
+    }
+    
+    // Calculate scale factor to fit within target size
+    let scaleFactor = targetSize / maxDimension;
+    
+    // Apply limits to prevent extreme scaling
+    const MIN_SCALE = 0.01;  // Prevent invisible objects
+    const MAX_SCALE = 10.0;  // Prevent numerical issues
+    
+    scaleFactor = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scaleFactor));
+    
+    // Combine with the scene object's intended scale
+    const finalScale = sceneObject.scale.clone().scale(scaleFactor);
+    mesh.scaling = finalScale;
+    
+    console.log(`🔧 Applied scale factor ${scaleFactor.toFixed(3)} to GLB model "${sceneObject.id}"`);
+    console.log(`📦 Final scale: (${finalScale.x.toFixed(3)}, ${finalScale.y.toFixed(3)}, ${finalScale.z.toFixed(3)})`);
+  }
+
   public initialize(canvas: HTMLCanvasElement): boolean {
     try {
       console.log('🚀 Initializing Babylon.js scene...')
@@ -299,7 +345,9 @@ export class SceneManager {
                   // Apply initial transformations from the sceneObject
                   rootMesh.position = sceneObject.position.clone();
                   rootMesh.rotation = sceneObject.rotation.clone();
-                  rootMesh.scaling = sceneObject.scale.clone();
+                  
+                  // Auto-scale GLB objects to fit within reasonable bounds (similar to GLBImporter)
+                  this.applyGLBAutoScaling(rootMesh, sceneObject);
                   
                   // Make it pickable and handle collisions
                   rootMesh.isPickable = true;
