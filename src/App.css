@@ -300,6 +300,30 @@ body {
   border-color: #3498db;
 }
 
+.control-select {
+  width: 120px;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 11px;
+  background: white;
+  cursor: pointer;
+}
+
+.control-select:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.control-value {
+  color: #666;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
 .control-checkbox {
   display: flex;
   align-items: center;

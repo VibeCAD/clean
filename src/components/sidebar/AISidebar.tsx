@@ -5,11 +5,7 @@ import { createAIService, type SceneCommand } from '../../ai/ai.service';
 import type { SceneObject } from '../../types/types';
 import { SceneGraph } from './SceneGraph';
 import { PropertiesPanel } from './PropertiesPanel';
-import { ImportButton } from './ImportButton';
-import { ExportButton } from './ExportButton';
-import { SpaceOptimizationPanel } from './SpaceOptimizationPanel';
-import { createGLBImporter } from '../../babylon/glbImporter';
-import { createSTLExporter } from '../../babylon/stlExporter';
+
 
 interface AISidebarProps {
   apiKey: string;
@@ -20,19 +16,7 @@ interface AISidebarProps {
   onOpenCustomRoomModal?: () => void;
 }
 
-const SceneDescriptionPanel = ({ description, onClose }: { description: string, onClose: () => void }) => {
-  if (!description) return null;
 
-  return (
-    <div className="scene-description-panel">
-      <div className="scene-description-header">
-        <h3>Scene Description</h3>
-        <button onClick={onClose} className="close-button">×</button>
-      </div>
-      <p className="scene-description-text">{description}</p>
-    </div>
-  );
-};
 
 export const AISidebar: React.FC<AISidebarProps> = ({ 
   apiKey, 
@@ -46,7 +30,6 @@ export const AISidebar: React.FC<AISidebarProps> = ({
     textInput,
     responseLog,
     sceneObjects,
-    importError,
     setSidebarCollapsed,
     setTextInput,
     setIsLoading,
@@ -55,16 +38,11 @@ export const AISidebar: React.FC<AISidebarProps> = ({
     addObject,
     removeObject,
     renameObject,
-    startImport,
-    importSuccess,
-    setImportError,
-    clearImportError,
     undo,
     redo,
   } = useSceneStore();
 
-  const [showDescriptionPanel, setShowDescriptionPanel] = React.useState(false);
-  const [sceneDescription, setSceneDescription] = React.useState('');
+
 
   /**
    * Synchronize object positions from the actual 3D meshes to the store
@@ -240,12 +218,7 @@ export const AISidebar: React.FC<AISidebarProps> = ({
           }
           break;
 
-        case 'describe':
-          if (command.description) {
-            setSceneDescription(command.description);
-            setShowDescriptionPanel(true);
-          }
-          break;
+
 
         case 'undo':
           // Call the undo function from the store
@@ -284,92 +257,7 @@ export const AISidebar: React.FC<AISidebarProps> = ({
     }
   };
 
-  const handleImportGLB = async (file: File) => {
-    if (!sceneInitialized || !sceneAPI) {
-      console.error('Scene not initialized');
-      return;
-    }
 
-    const sceneManager = sceneAPI.getSceneManager();
-    if (!sceneManager || !sceneManager.scene) {
-      console.error('Scene manager not available');
-      return;
-    }
-
-    // Clear any previous import error
-    clearImportError();
-    
-    // Start the import process
-    startImport();
-
-    try {
-      // Create model importer with scene and sceneManager
-      const importer = createGLBImporter(sceneManager.scene, sceneManager);
-      
-      // Import the file
-      const sceneObject = await importer.importModel(file);
-      
-      // Add the imported object to the scene
-      addObject(sceneObject);
-      
-      // Success!
-      importSuccess();
-      addToResponseLog(`Success: Imported 3D model "${file.name}"`);
-      
-    } catch (error: any) {
-      console.error('Import failed:', error);
-      
-      // Set the import error based on the error message
-      let errorType: 'FILE_TOO_LARGE' | 'INVALID_FORMAT' | 'LOADING_FAILED' = 'LOADING_FAILED';
-      
-      if (error instanceof Error) {
-        if (error.message === 'FILE_TOO_LARGE') {
-          errorType = 'FILE_TOO_LARGE';
-        } else if (error.message === 'INVALID_FORMAT') {
-          errorType = 'INVALID_FORMAT';
-        }
-      }
-      
-      setImportError({
-        type: errorType,
-        message: 'IMPORT FAILED'
-      });
-      
-      addToResponseLog('Error: IMPORT FAILED');
-    }
-  };
-
-  const handleExportSTL = async () => {
-    if (!sceneInitialized || !sceneAPI) {
-      console.error('Scene not initialized');
-      return;
-    }
-
-    const sceneManager = sceneAPI.getSceneManager();
-    if (!sceneManager || !sceneManager.scene) {
-      console.error('Scene manager not available');
-      return;
-    }
-
-    try {
-      // Create STL exporter
-      const exporter = createSTLExporter(sceneManager.scene);
-      
-      // Generate filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      const filename = `vibecad-export-${timestamp}.stl`;
-      
-      // Export the scene
-      await exporter.exportSceneToSTL(sceneObjects, filename);
-      
-      // Success!
-      addToResponseLog(`Success: Exported scene to "${filename}"`);
-      
-    } catch (error: any) {
-      console.error('Export failed:', error);
-      addToResponseLog(`Error: Export failed - ${error.message || 'Unknown error'}`);
-    }
-  };
 
   const handleSubmitPrompt = async () => {
     if (!apiKey || !textInput.trim()) return;
@@ -543,61 +431,32 @@ export const AISidebar: React.FC<AISidebarProps> = ({
       
       {!sidebarCollapsed && (
         <div className="ai-sidebar-content">
-          {showDescriptionPanel && <SceneDescriptionPanel description={sceneDescription} onClose={() => setShowDescriptionPanel(false)} />}
-          
           {!sceneInitialized && (
             <div className="loading-indicator">
               <p>Initializing 3D scene...</p>
             </div>
           )}
           
-          {/* AI Control Group */}
+          {/* AI Control Group - Moved to lower left corner */}
           <div className="ai-control-group">
-            <label htmlFor="ai-prompt">Natural Language Commands:</label>
-            <textarea
-              id="ai-prompt"
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Try: 'move the cube to the right', 'make the cube blue', 'create a red sphere above the cube', 'apply wood texture', 'make it brick'"
-              className="ai-text-input"
-              disabled={isLoading || !sceneInitialized}
-            />
-            <button 
-              onClick={handleSubmitPrompt}
-              disabled={isLoading || !textInput.trim() || !sceneInitialized}
-              className="ai-submit-button"
-            >
-              {isLoading ? 'Processing...' : 'Execute AI Command'}
-            </button>
+            <div className="ai-prompt-moved-notice">
+              <p>📍 AI Command Input has been moved to the lower left corner of the screen</p>
+            </div>
           </div>
 
-          {/* Import GLB Control */}
+          {/* File Actions Moved Notice */}
           <div className="ai-control-group">
-            <label>Import 3D Model:</label>
-            <ImportButton 
-              onImport={handleImportGLB}
-              disabled={!sceneInitialized}
-            />
-            {importError && (
-              <div className="import-error-message">
-                {importError.message}
-              </div>
-            )}
+            <div className="ai-prompt-moved-notice">
+              <p>📎 Import/Export buttons have been moved to the upper right corner</p>
+            </div>
           </div>
 
-          {/* Export STL Control */}
+          {/* Space Optimization Panel - Moved to toolbar */}
           <div className="ai-control-group">
-            <label>Export Scene:</label>
-            <ExportButton
-              onExport={handleExportSTL}
-              disabled={!sceneInitialized}
-              objectCount={sceneObjects.filter(obj => obj.type !== 'ground').length}
-            />
+            <div className="ai-prompt-moved-notice">
+              <p>🏗️ Space Optimization tools have been moved to the toolbar (Space menu)</p>
+            </div>
           </div>
-
-          {/* Space Optimization Panel */}
-          <SpaceOptimizationPanel sceneAPI={sceneAPI} />
 
           {/* Scene Graph Component */}
           <SceneGraph />

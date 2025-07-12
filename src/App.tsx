@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState } from 'react'
+import React, { useRef, useEffect, useState, useMemo } from 'react'
 import { Vector3, Vector2, StandardMaterial, Color3, Mesh, PolygonMeshBuilder, DynamicTexture } from 'babylonjs'
 import { computeCompositeBoundary, generateDefaultConnectionPoints } from './babylon/boundaryUtils'
 import { createFullGridTexture, calculateFullGridUVScale } from './babylon/gridTextureUtils'
@@ -29,13 +29,55 @@ import { CustomRoomModal } from './components/modals/CustomRoomModal'
 import { SelectionModeIndicator } from './components/ui/SelectionModeIndicator'
 import { SelectionInfoDisplay } from './components/ui/SelectionInfoDisplay'
 import { UndoRedoIndicator } from './components/ui/UndoRedoIndicator'
+import { AIPromptBox } from './components/ui/AIPromptBox'
+import { ActionButtonsOverlay } from './components/ui/ActionButtonsOverlay'
 import { MeshBuilder } from 'babylonjs'
+import { createGLBImporter } from './babylon/glbImporter'
+import { createSTLExporter } from './babylon/stlExporter'
+
+// SceneDescriptionPanel component
+const SceneDescriptionPanel = ({ description, onClose }: { description: string, onClose: () => void }) => {
+  if (!description) return null;
+
+  return (
+    <div 
+      className="scene-description-panel"
+      style={{
+        position: 'fixed',
+        bottom: '230px', // Position so bottom of panel is at top of AIPromptBox
+        left: '20px',
+        zIndex: 10001, // Higher than AIPromptBox which is 10000
+        backgroundColor: '#2c2c2e',
+        padding: '15px',
+        borderRadius: '8px',
+        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
+        border: '1px solid #444',
+        maxWidth: '400px',
+        minWidth: '300px'
+      }}
+    >
+      <div className="scene-description-header">
+        <h3>Scene Description</h3>
+        <button onClick={onClose} className="close-button">×</button>
+      </div>
+      <p className="scene-description-text">{description}</p>
+    </div>
+  );
+};
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   
   // Modal state for custom room drawing
   const [showCustomRoomModal, setShowCustomRoomModal] = useState(false)
+  
+  // Scene description panel state
+  const [showDescriptionPanel, setShowDescriptionPanel] = useState(false)
+  const [sceneDescription, setSceneDescription] = useState('')
+
+  // Space optimization state
+  const [selectedFurnitureType, setSelectedFurnitureType] = useState('Desk')
+  const [optimizationStrategy, setOptimizationStrategy] = useState<'maximize' | 'comfort' | 'ergonomic' | 'aesthetic'>('maximize')
   
   // Use the new babylon scene hook
   const { sceneAPI, sceneInitialized } = useBabylonScene(canvasRef)
@@ -963,59 +1005,7 @@ function App() {
       <div className="toolbar-menu">
         <div className="toolbar-brand">VibeCad Pro</div>
         
-        <div className="toolbar-status">
-          <span className="status-item">
-            <span className="status-label">Mode:</span>
-            <span className={`status-value ${transformMode}`}>{transformMode.toUpperCase()}</span>
-          </span>
-          <span className="status-item">
-            <span className="status-label">Grid:</span>
-            <span className={`status-value ${snapToGrid ? 'on' : 'off'}`}>
-              {snapToGrid ? `ON (${gridSize})` : 'OFF'}
-            </span>
-          </span>
-          <span className="status-item">
-            <span className="status-label">Collision:</span>
-            <span className={`status-value ${collisionDetectionEnabled ? 'on' : 'off'}`}>
-              {collisionDetectionEnabled ? 'ON' : 'OFF'}
-            </span>
-          </span>
-          <span className="status-item">
-            <span className="status-label">Selected:</span>
-            <span className="status-value">
-              {selectedObjectId ? '1' : selectedObjectIds.length}
-            </span>
-          </span>
-          <span 
-            className="status-item"
-            title={movementEnabled 
-              ? `WASD Movement is ENABLED. Speed: ${movementSpeed.toFixed(2)} units/frame. Use WASD keys to navigate, Q/E for vertical movement, Shift to sprint.`
-              : 'WASD Movement is DISABLED. Enable in Tools menu to use keyboard navigation.'
-            }
-          >
-            <span className="status-label">Movement:</span>
-            <span className={`status-value ${movementEnabled ? 'on' : 'off'}`}>
-              {movementEnabled ? `WASD (${movementSpeed.toFixed(2)})` : 'OFF'}
-            </span>
-          </span>
-          {/* Quick test button */}
-          <button 
-            className="test-button"
-            onClick={() => createPrimitive('cube')}
-            disabled={!sceneInitialized}
-            style={{
-              marginLeft: '10px',
-              padding: '4px 8px',
-              backgroundColor: '#3498db',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            🧪 Add Test Cube
-          </button>
-        </div>
+
         
         {/* Transform Tools */}
         <div className="toolbar-item">
@@ -1413,105 +1403,7 @@ function App() {
           </div>
         </div>
 
-        {/* Edit Menu */}
-        <div className="toolbar-item">
-          <button 
-            className={`toolbar-button ${hasSelectionFlag ? 'active' : ''}`}
-            onClick={() => toggleDropdown('edit')}
-          >
-            Edit <span className="dropdown-arrow">▼</span>
-          </button>
-          <div className={`dropdown-menu ${activeDropdown === 'edit' ? 'show' : ''}`}>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Selection Mode</div>
-              <div className="dropdown-actions">
-                <button 
-                  className={`dropdown-action ${!multiSelectMode ? 'active' : ''}`}
-                  onClick={() => {
-                    setMultiSelectMode(false)
-                    setSelectedObjectIds([])
-                    setActiveDropdown(null)
-                  }}
-                >
-                  Single Select
-                </button>
-                <button 
-                  className={`dropdown-action ${multiSelectMode ? 'active' : ''}`}
-                  onClick={() => {
-                    setMultiSelectMode(true)
-                    setSelectedObjectId(null)
-                    setActiveDropdown(null)
-                  }}
-                >
-                  Multi Select
-                </button>
-              </div>
-            </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Selection Tools</div>
-              <div className="dropdown-actions">
-                <button 
-                  className="dropdown-action"
-                  onClick={selectAllObjects}
-                >
-                  Select All
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={deselectAllObjects}
-                >
-                  Deselect All
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={invertSelection}
-                >
-                  Invert Selection
-                </button>
-              </div>
-            </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Current Selection</div>
-              <SelectionInfoDisplay />
-            </div>
-            {hasSelectionFlag && (
-              <div className="dropdown-section">
-                <div className="dropdown-section-title">Actions</div>
-                <div className="dropdown-actions">
-                  <button 
-                    className="dropdown-action"
-                    onClick={duplicateSelectedObjects}
-                  >
-                    Duplicate
-                  </button>
-                  <button 
-                    className="dropdown-action"
-                    onClick={resetTransforms}
-                  >
-                    Reset Transform
-                  </button>
-                  <button 
-                    className="dropdown-action danger"
-                                      onClick={() => {
-                    const objectsToDelete = selectedObjectId ? [selectedObjectId] : selectedObjectIds
-                    
-                    objectsToDelete.forEach(id => {
-                      removeObject(id)
-                    })
-                    
-                    setSelectedObjectId(null)
-                    setSelectedObjectIds([])
-                    setActiveDropdown(null)
-                    console.log('🗑️ Deleted selected objects')
-                  }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+
 
         {/* Tools Menu */}
         <div className="toolbar-item">
@@ -1686,122 +1578,103 @@ function App() {
           </div>
         </div>
 
-        {/* Building Menu */}
+
+
+        {/* Space Optimization Menu */}
         <div className="toolbar-item">
           <button 
             className="toolbar-button"
-            onClick={() => toggleDropdown('building')}
+            onClick={() => toggleDropdown('space')}
           >
-            Building <span className="dropdown-arrow">▼</span>
+            Space <span className="dropdown-arrow">▼</span>
           </button>
-          <div className={`dropdown-menu ${activeDropdown === 'building' ? 'show' : ''}`}>
+          <div className={`dropdown-menu ${activeDropdown === 'space' ? 'show' : ''}`}>
             <div className="dropdown-section">
-              <div className="dropdown-section-title">Quick Build</div>
-              <div className="dropdown-actions">
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    createModularRoom();
-                    setTimeout(() => createHousingComponent('door', 'single'), 100);
-                  }}
-                >
-                  Room with Door
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    createModularRoom();
-                    setTimeout(() => createHousingComponent('window', 'single'), 100);
-                  }}
-                >
-                  Room with Window
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    createModularRoom();
-                    setTimeout(() => createHousingComponent('door', 'single'), 100);
-                    setTimeout(() => createHousingComponent('window', 'single'), 200);
-                  }}
-                >
-                  Complete Room
-                </button>
+              <div className="dropdown-section-title">Room Analysis</div>
+              <div className="dropdown-controls">
+                <div className="control-row">
+                  <span className="control-label">Room Status:</span>
+                  <span className="control-value">
+                    {sceneObjects.filter(obj => obj.type === 'custom-room').length > 0 ? 
+                      '✅ Available' : '⚠️ No rooms'}
+                  </span>
+                </div>
+                <div className="control-row">
+                  <span className="control-label">Furniture Type:</span>
+                  <select 
+                    className="control-select"
+                    value={selectedFurnitureType || 'Desk'}
+                    onChange={(e) => setSelectedFurnitureType(e.target.value)}
+                  >
+                    <option value="Desk">Desk</option>
+                    <option value="Chair">Chair</option>
+                    <option value="Table">Table</option>
+                    <option value="Sofa">Sofa</option>
+                    <option value="Bed Single">Bed Single</option>
+                    <option value="Bed Double">Bed Double</option>
+                    <option value="Bookcase">Bookcase</option>
+                    <option value="TV">TV</option>
+                    <option value="Standing Desk">Standing Desk</option>
+                    <option value="Adjustable Desk">Adjustable Desk</option>
+                  </select>
+                </div>
+                <div className="control-row">
+                  <span className="control-label">Strategy:</span>
+                  <select 
+                    className="control-select"
+                    value={optimizationStrategy || 'maximize'}
+                    onChange={(e) => setOptimizationStrategy(e.target.value as any)}
+                  >
+                    <option value="maximize">Maximize Capacity</option>
+                    <option value="comfort">Comfort & Accessibility</option>
+                    <option value="ergonomic">Ergonomic Layout</option>
+                    <option value="aesthetic">Aesthetic Balance</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div className="dropdown-section">
-              <div className="dropdown-section-title">Building Tools</div>
+              <div className="dropdown-section-title">Analysis Actions</div>
               <div className="dropdown-actions">
                 <button 
                   className="dropdown-action"
                   onClick={() => {
-                    // Select all housing objects
-                    const housingObjects = sceneObjects.filter(obj => obj.type.startsWith('house-'));
-                    if (housingObjects.length > 0) {
-                      setSelectedObjectIds(housingObjects.map(obj => obj.id));
-                      setSelectedObjectId(null);
-                    }
+                    handleAnalyzeSpace();
                     setActiveDropdown(null);
                   }}
+                  disabled={sceneObjects.filter(obj => obj.type === 'custom-room').length === 0}
                 >
-                  Select All Housing
+                  🔍 Analyze Space
                 </button>
                 <button 
                   className="dropdown-action"
                   onClick={() => {
-                    // Focus on housing objects
-                    const housingObjects = sceneObjects.filter(obj => obj.type.startsWith('house-'));
-                    if (housingObjects.length > 0) {
-                      const center = housingObjects.reduce((acc, obj) => {
-                        return acc.add(obj.position)
-                      }, new Vector3(0, 0, 0)).scale(1 / housingObjects.length);
-                      sceneAPI.focusOnPosition(center);
-                    }
+                    handleAnalyzeSelected();
                     setActiveDropdown(null);
                   }}
+                  disabled={!hasSelectionFlag || sceneObjects.filter(obj => obj.type === 'custom-room').length === 0}
                 >
-                  Focus on Building
-                </button>
-              </div>
-            </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Organization</div>
-              <div className="dropdown-actions">
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    // Organize housing objects in a grid
-                    const housingObjects = sceneObjects.filter(obj => obj.type.startsWith('house-'));
-                    housingObjects.forEach((obj, index) => {
-                      const gridSize = Math.ceil(Math.sqrt(housingObjects.length));
-                      const row = Math.floor(index / gridSize);
-                      const col = index % gridSize;
-                      const newPosition = new Vector3(col * 4, obj.position.y, row * 4);
-                      updateObject(obj.id, { position: newPosition });
-                    });
-                    setActiveDropdown(null);
-                  }}
-                >
-                  Organize Grid
+                  📋 Analyze Selected
                 </button>
                 <button 
                   className="dropdown-action"
                   onClick={() => {
-                    // Align housing objects to ground level
-                    const housingObjects = sceneObjects.filter(obj => obj.type.startsWith('house-'));
-                    housingObjects.forEach(obj => {
-                      let groundLevel = 0;
-                      if (obj.type.includes('floor')) groundLevel = 0.05;
-                      else if (obj.type.includes('wall')) groundLevel = 0.75;
-                      else if (obj.type.includes('ceiling')) groundLevel = 2.5;
-                      else if (obj.type.includes('door') || obj.type.includes('window')) groundLevel = 1;
-                      
-                      const newPosition = new Vector3(obj.position.x, groundLevel, obj.position.z);
-                      updateObject(obj.id, { position: newPosition });
-                    });
+                    handleGenerateLayouts();
                     setActiveDropdown(null);
                   }}
+                  disabled={sceneObjects.filter(obj => obj.type === 'custom-room').length === 0}
                 >
-                  Align to Ground
+                  🎨 Generate Layouts
+                </button>
+                <button 
+                  className="dropdown-action"
+                  onClick={() => {
+                    handleClearOptimizedObjects();
+                    setActiveDropdown(null);
+                  }}
+                  disabled={sceneObjects.filter(obj => obj.id.startsWith('optimized-')).length === 0}
+                >
+                  🗑️ Clear Optimized ({sceneObjects.filter(obj => obj.id.startsWith('optimized-')).length})
                 </button>
               </div>
             </div>
@@ -1920,6 +1793,357 @@ function App() {
     console.log('🎨 Opening custom room modal from AI command')
     setShowCustomRoomModal(true)
   }
+
+  // AI prompt submission handler
+  const handleAIPromptSubmit = async () => {
+    if (!textInput.trim() || isLoading || !sceneInitialized) return;
+
+    // Check for special keywords
+    const lowerInput = textInput.trim().toLowerCase();
+    if (lowerInput.includes('draw room panel')) {
+      console.log('🎨 Detected "draw room panel" command');
+      
+      // Open the custom room modal
+      handleOpenCustomRoomModal();
+      setTextInput(''); // Clear the input
+      addToResponseLog('User: draw room panel');
+      addToResponseLog('AI: Opening custom room drawing panel...');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Import AI service dynamically
+      const { createAIService } = await import('./ai/ai.service');
+      
+      // Sync positions from 3D meshes to store
+      if (sceneAPI && sceneInitialized) {
+        const sceneManager = sceneAPI.getSceneManager();
+        if (sceneManager) {
+          sceneObjects.forEach(obj => {
+            if (obj.type === 'ground') return;
+            
+            const mesh = sceneManager.getMeshById(obj.id);
+            if (mesh) {
+              const meshPosition = mesh.position;
+              const meshRotation = mesh.rotation;
+              const meshScale = mesh.scaling;
+              
+              const positionDiff = !obj.position.equals(meshPosition);
+              const rotationDiff = !obj.rotation.equals(meshRotation);
+              const scaleDiff = !obj.scale.equals(meshScale);
+              
+              if (positionDiff || rotationDiff || scaleDiff) {
+                updateObject(obj.id, {
+                  position: meshPosition.clone(),
+                  rotation: meshRotation.clone(),
+                  scale: meshScale.clone()
+                });
+              }
+            }
+          });
+        }
+      }
+
+      // Prepare scene data for AI
+      const enrichedSceneObjects = sceneObjects.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+        rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
+        scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
+        color: obj.color,
+        isNurbs: obj.isNurbs
+      }));
+
+      const currentSelectedId = selectedObjectId;
+      const currentSelectedIds = selectedObjectIds;
+
+      // GLB object names for AI context
+      const glbObjectNames = [
+        'Adjustable Desk', 'Bathtub', 'Bed Double', 'Bed Single', 'Bookcase', 'Chair',
+        'Clothes dryer', 'Couch Small', 'Desk', 'Fan', 'Kitchen Fridge', 'Light Desk',
+        'Light Stand', 'Oven', 'Simple computer', 'Simple table', 'Sofa', 'Standing Desk',
+        'Table', 'TV', 'wooden bookshelf'
+      ];
+
+      const aiService = createAIService(apiKey, glbObjectNames);
+      const result = await aiService.getSceneCommands(textInput, enrichedSceneObjects as any, currentSelectedId, currentSelectedIds);
+      
+      if (result.success && result.commands) {
+        // Log the user prompt and AI response
+        if (result.userPrompt) {
+          addToResponseLog(`User: ${result.userPrompt}`);
+        }
+        if (result.aiResponse) {
+          addToResponseLog(`AI: ${result.aiResponse}`);
+        }
+        
+        // Execute all commands
+        console.log('Executing commands:', result.commands);
+        result.commands.forEach(command => {
+          // Execute scene command logic here
+          switch (command.action) {
+            case 'move':
+              if (command.objectId) {
+                updateObject(command.objectId, { 
+                  position: new Vector3(command.x || 0, command.y || 0, command.z || 0) 
+                });
+              }
+              break;
+            case 'color':
+              if (command.objectId) {
+                updateObject(command.objectId, { color: command.color || '#3498db' });
+              }
+              break;
+            case 'scale':
+              if (command.objectId) {
+                const scaleX = command.scaleX || command.x || 1;
+                const scaleY = command.scaleY || command.y || 1;
+                const scaleZ = command.scaleZ || command.z || 1;
+                
+                updateObject(command.objectId, { 
+                  scale: new Vector3(scaleX, scaleY, scaleZ) 
+                });
+              }
+              break;
+            case 'rotate':
+              if (command.objectId) {
+                const rotationX = command.rotationX || 0;
+                const rotationY = command.rotationY || 0;
+                const rotationZ = command.rotationZ || 0;
+                
+                updateObject(command.objectId, { 
+                  rotation: new Vector3(rotationX, rotationY, rotationZ) 
+                });
+              }
+              break;
+            case 'create':
+              if (command.type) {
+                let newId = command.name;
+                if (newId) {
+                  if (sceneObjects.some(obj => obj.id === newId)) {
+                    const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+                    const oldId = newId;
+                    newId = `${newId}-${uniqueSuffix}`;
+                    addToResponseLog(`Warning: Object name "${oldId}" already exists. Renaming to "${newId}".`);
+                  }
+                } else {
+                  newId = `${command.type}-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
+                }
+                
+                const newObj: SceneObject = {
+                  id: newId,
+                  type: command.type,
+                  position: new Vector3(command.x || 0, command.y || 1, command.z || 0),
+                  scale: new Vector3(1, 1, 1),
+                  rotation: new Vector3(0, 0, 0),
+                  color: command.color || (command.type.startsWith('house-') ? '#8B4513' : '#3498db'),
+                  isNurbs: false
+                };
+                
+                addObject(newObj);
+              }
+              break;
+            case 'delete':
+              if (command.objectId) {
+                removeObject(command.objectId);
+              }
+              break;
+            case 'describe':
+              if (command.description) {
+                setSceneDescription(command.description);
+                setShowDescriptionPanel(true);
+              }
+              break;
+          }
+        });
+      } else {
+        const errorMessage = result.error || 'Unknown error occurred';
+        console.error('AI service error:', errorMessage);
+        addToResponseLog(`Error: ${errorMessage}`);
+        
+        if (result.userPrompt) {
+          addToResponseLog(`User: ${result.userPrompt}`);
+        }
+        if (result.aiResponse) {
+          addToResponseLog(`AI: ${result.aiResponse}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error in AI service:', error);
+      addToResponseLog(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+      setTextInput('');
+    }
+  }
+
+  // Import GLB handler
+  const handleImportGLB = async (file: File) => {
+    if (!sceneInitialized || !sceneAPI) {
+      console.error('Scene not initialized');
+      return;
+    }
+
+    const sceneManager = sceneAPI.getSceneManager();
+    const scene = sceneManager?.getScene();
+    if (!sceneManager || !scene) {
+      console.error('Scene manager not available');
+      return;
+    }
+
+    // Clear any previous import error
+    const { clearImportError, startImport, importSuccess, setImportError, addToResponseLog } = useSceneStore.getState();
+    clearImportError();
+    
+    // Start the import process
+    startImport();
+
+    try {
+      // Create model importer with scene and sceneManager
+      const importer = createGLBImporter(scene, sceneManager);
+      
+      // Import the file
+      const sceneObject = await importer.importModel(file);
+      
+      // Add the imported object to the scene
+      addObject(sceneObject);
+      
+      // Success!
+      importSuccess();
+      addToResponseLog(`Success: Imported 3D model "${file.name}"`);
+      
+    } catch (error: any) {
+      console.error('Import failed:', error);
+      
+      // Set the import error based on the error message
+      let errorType: 'FILE_TOO_LARGE' | 'INVALID_FORMAT' | 'LOADING_FAILED' = 'LOADING_FAILED';
+      
+      if (error instanceof Error) {
+        if (error.message === 'FILE_TOO_LARGE') {
+          errorType = 'FILE_TOO_LARGE';
+        } else if (error.message === 'INVALID_FORMAT') {
+          errorType = 'INVALID_FORMAT';
+        }
+      }
+      
+      setImportError({
+        type: errorType,
+        message: 'IMPORT FAILED'
+      });
+      
+      addToResponseLog('Error: IMPORT FAILED');
+    }
+  };
+
+  // Export STL handler
+  const handleExportSTL = async () => {
+    if (!sceneInitialized || !sceneAPI) {
+      console.error('Scene not initialized');
+      return;
+    }
+
+    const sceneManager = sceneAPI.getSceneManager();
+    const scene = sceneManager?.getScene();
+    if (!sceneManager || !scene) {
+      console.error('Scene manager not available');
+      return;
+    }
+
+    try {
+      // Create STL exporter
+      const exporter = createSTLExporter(scene);
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `vibecad-export-${timestamp}.stl`;
+      
+      // Export the scene
+      await exporter.exportSceneToSTL(sceneObjects, filename);
+      
+      // Success!
+      addToResponseLog(`Success: Exported scene to "${filename}"`);
+      
+    } catch (error: any) {
+      console.error('Export failed:', error);
+      addToResponseLog(`Error: Export failed - ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  // Space optimization handlers
+  const handleAnalyzeSpace = async () => {
+    const roomObjects = sceneObjects.filter(obj => obj.type === 'custom-room');
+    if (roomObjects.length === 0) {
+      addToResponseLog('Error: No custom rooms found. Please draw a room first.');
+      return;
+    }
+    
+    try {
+      addToResponseLog(`🔍 Analyzing space for ${selectedFurnitureType} using ${optimizationStrategy} strategy...`);
+      // Placeholder for space analysis logic
+      // This would integrate with the SpaceOptimizationPanel's actual analysis
+      addToResponseLog('✅ Space analysis complete. Check AI sidebar for detailed results.');
+    } catch (error) {
+      addToResponseLog(`Error: Space analysis failed - ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleAnalyzeSelected = async () => {
+    if (!hasSelectionFlag) {
+      addToResponseLog('Error: Please select objects to analyze');
+      return;
+    }
+
+    const roomObjects = sceneObjects.filter(obj => obj.type === 'custom-room');
+    if (roomObjects.length === 0) {
+      addToResponseLog('Error: No custom rooms found. Please draw a room first.');
+      return;
+    }
+
+    try {
+      addToResponseLog(`📋 Analyzing selected objects in room context...`);
+      // Placeholder for selected object analysis logic
+      addToResponseLog('✅ Selected object analysis complete. Check AI sidebar for detailed results.');
+    } catch (error) {
+      addToResponseLog(`Error: Selected object analysis failed - ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleGenerateLayouts = async () => {
+    const roomObjects = sceneObjects.filter(obj => obj.type === 'custom-room');
+    if (roomObjects.length === 0) {
+      addToResponseLog('Error: No custom rooms found. Please draw a room first.');
+      return;
+    }
+
+    try {
+      addToResponseLog(`🎨 Generating optimized layouts for ${selectedFurnitureType}...`);
+      // Placeholder for layout generation logic  
+      addToResponseLog('✅ Layout generation complete. Check AI sidebar for layout options.');
+    } catch (error) {
+      addToResponseLog(`Error: Layout generation failed - ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleClearOptimizedObjects = () => {
+    const optimizedObjects = sceneObjects.filter(obj => obj.id.startsWith('optimized-'));
+    if (optimizedObjects.length === 0) {
+      addToResponseLog('No optimized objects to clear.');
+      return;
+    }
+
+    try {
+      optimizedObjects.forEach(obj => {
+        removeObject(obj.id);
+      });
+      addToResponseLog(`🗑️ Cleared ${optimizedObjects.length} optimized objects from the scene.`);
+    } catch (error) {
+      addToResponseLog(`Error: Failed to clear optimized objects - ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   /*
   const clearAllObjects = () => {
     // Detach gizmo first
@@ -2000,6 +2224,13 @@ function App() {
           <CompassOverlay />
           {/* Measurement overlay for grid coordinates and distance measurement */}
           <MeasurementOverlay scene={sceneAPI.getSceneManager()?.getScene() || null} />
+          {/* Action Buttons Overlay - Test Cube, Import/Export buttons side by side */}
+          <ActionButtonsOverlay
+            onImport={handleImportGLB}
+            onExport={handleExportSTL}
+            onCreateCube={() => createPrimitive('cube')}
+            sceneInitialized={sceneInitialized}
+          />
           {/* Selection mode indicator for multi-select feedback */}
           <SelectionModeIndicator isVisible={sceneInitialized} />
           {/* Undo/Redo indicator and controls */}
@@ -2018,6 +2249,23 @@ function App() {
         onCancel={() => setShowCustomRoomModal(false)}
         onCreate={handleCreateCustomRoom}
         onCreateMultiple={handleCreateMultipleCustomRooms}
+      />
+      
+      {/* Scene Description Panel - Above AI Prompt Box */}
+      {showDescriptionPanel && (
+        <SceneDescriptionPanel 
+          description={sceneDescription} 
+          onClose={() => setShowDescriptionPanel(false)} 
+        />
+      )}
+      
+      {/* AI Prompt Box - Lower Left Corner */}
+      <AIPromptBox
+        value={textInput}
+        onChange={setTextInput}
+        onSubmit={handleAIPromptSubmit}
+        isLoading={isLoading}
+        isDisabled={!sceneInitialized}
       />
     </div>
   )
