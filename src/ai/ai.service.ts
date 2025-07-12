@@ -392,6 +392,112 @@ export interface AIServiceResult {
   }
 
   /**
+   * Find ALL objects matching a description (for bulk operations)
+   */
+  private findObjectsByDescription(description: string, sceneObjects: SceneObject[]): SceneObject[] {
+    const lowerDesc = description.toLowerCase();
+    console.log(`🔍 Finding ALL objects matching: "${description}"`);
+    
+    // Try to find all by color first
+    const colorMatches = sceneObjects.filter(obj => {
+      if (obj.color) {
+        const colorName = this.getColorName(obj.color);
+        return colorName.includes(lowerDesc) || lowerDesc.includes(colorName);
+      }
+      return false;
+    });
+
+    if (colorMatches.length > 0) {
+      console.log(`🎯 Found ${colorMatches.length} objects by color: ${colorMatches.map(o => o.id).join(', ')}`);
+      return colorMatches;
+    }
+
+    // Then try to find all by type
+    const typeMatches = sceneObjects.filter(obj => 
+      obj.type.toLowerCase().includes(lowerDesc) || lowerDesc.includes(obj.type.toLowerCase())
+    );
+
+    if (typeMatches.length > 0) {
+      console.log(`🎯 Found ${typeMatches.length} objects by type: ${typeMatches.map(o => o.id).join(', ')}`);
+      return typeMatches;
+    }
+
+    // Finally try to find by ID (this will likely return 0 or 1 object)
+    const idMatches = sceneObjects.filter(obj => 
+      obj.id.toLowerCase().includes(lowerDesc) || lowerDesc.includes(obj.id.toLowerCase())
+    );
+
+    if (idMatches.length > 0) {
+      console.log(`🎯 Found ${idMatches.length} objects by ID: ${idMatches.map(o => o.id).join(', ')}`);
+      return idMatches;
+    }
+
+    console.log(`❌ No objects found matching: "${description}"`);
+    return [];
+  }
+
+  /**
+   * Detect if a prompt contains bulk operation keywords
+   */
+  private detectBulkOperation(prompt: string): {
+    isBulk: boolean;
+    keywords: string[];
+  } {
+    const lowerPrompt = prompt.toLowerCase();
+    const bulkKeywords = [
+      'all', 'all of the', 'all the', 'every', 'each', 'both',
+      'multiple', 'several', 'many', 'various'
+    ];
+
+    const foundKeywords = bulkKeywords.filter(keyword => lowerPrompt.includes(keyword));
+    const isBulk = foundKeywords.length > 0;
+
+    if (isBulk) {
+      console.log(`🔄 Bulk operation detected with keywords: ${foundKeywords.join(', ')}`);
+    }
+
+    return {
+      isBulk,
+      keywords: foundKeywords
+    };
+  }
+
+  /**
+   * Expand a single bulk command into multiple individual commands
+   */
+  private expandBulkCommand(command: SceneCommand, sourceObjects: SceneObject[], targetObject?: SceneObject): SceneCommand[] {
+    console.log(`🔄 Expanding bulk command for ${sourceObjects.length} objects`);
+    
+    const expandedCommands: SceneCommand[] = [];
+
+    sourceObjects.forEach((sourceObj, index) => {
+      const individualCommand: SceneCommand = {
+        ...command,
+        objectId: sourceObj.id
+      };
+
+      // For facing commands, calculate rotation for each object individually
+      if (command.action === 'rotate' && targetObject) {
+        const newRotation = this.calculateFacingRotation(
+          sourceObj,
+          targetObject,
+          sourceObj.rotation
+        );
+        
+        individualCommand.rotationX = newRotation.x;
+        individualCommand.rotationY = newRotation.y;
+        individualCommand.rotationZ = newRotation.z;
+        
+        console.log(`🎯 Command ${index + 1}/${sourceObjects.length}: ${sourceObj.id} → ${targetObject.id} (Y rotation: ${this.radiansToDegrees(newRotation.y).toFixed(1)}°)`);
+      }
+
+      expandedCommands.push(individualCommand);
+    });
+
+    return expandedCommands;
+  }
+
+  /**
    * Convert degrees to radians for rotation calculations
    */
   private degreesToRadians(degrees: number): number {
@@ -1000,6 +1106,8 @@ FACING LOGIC:
   - Ceilings face -Y (down) by default
 - The facing calculation preserves X and Z rotations, only adjusting Y rotation
 - For "face" commands, you can return rotation values of 0,0,0 - the system will calculate the correct values
+- BULK OPERATIONS: If the user asks to "face" multiple objects (using words like "all", "all of the", "every", etc.), the system will automatically detect this and apply the facing command to ALL matching objects
+- For bulk facing operations, still generate only ONE rotation command with description - the system will expand it to multiple commands automatically
 
 ALIGNMENT BEHAVIOR:
 - The align action creates perfect perpendicular alignment (90 degrees)
@@ -1090,6 +1198,22 @@ FACING COMMAND EXAMPLES (let the system calculate the exact rotation):
 
 "Orient the bookshelf toward the reading chair":
 [{"action": "rotate", "objectId": "bookshelf-id", "rotationX": 0, "rotationY": 0, "rotationZ": 0, "description": "orient the bookshelf toward the reading chair"}]
+
+BULK FACING COMMAND EXAMPLES (system will automatically expand to multiple commands):
+"Make all of the chairs face the desk":
+[{"action": "rotate", "rotationX": 0, "rotationY": 0, "rotationZ": 0, "description": "make all of the chairs face the desk"}]
+
+"Turn all the sofas toward the TV":
+[{"action": "rotate", "rotationX": 0, "rotationY": 0, "rotationZ": 0, "description": "turn all the sofas toward the TV"}]
+
+"Point every chair at the table":
+[{"action": "rotate", "rotationX": 0, "rotationY": 0, "rotationZ": 0, "description": "point every chair at the table"}]
+
+"Make all red cubes face the blue sphere":
+[{"action": "rotate", "rotationX": 0, "rotationY": 0, "rotationZ": 0, "description": "make all red cubes face the blue sphere"}]
+
+"Orient all desks toward the window":
+[{"action": "rotate", "rotationX": 0, "rotationY": 0, "rotationZ": 0, "description": "orient all desks toward the window"}]
 
 ALIGNMENT COMMAND EXAMPLES:
 "Align the wall to the north edge of the floor":
@@ -1737,27 +1861,35 @@ Object IDs currently in scene: ${objectIds.join(', ')}`;
     const enhancedCommands: SceneCommand[] = [];
     
     commands.forEach(command => {
-      // Handle rotation commands with facing logic
+      // Handle rotation commands with facing logic (supports bulk operations)
       if (command.action === 'rotate') {
         // Check if this is a facing command by looking for target object reference
         const facingCommand = this.detectFacingInRotationCommand(command, sceneObjects);
         
-        if (facingCommand.isFacing && facingCommand.sourceObject && facingCommand.targetObject) {
-          // Calculate the rotation needed to face the target
-          const newRotation = this.calculateFacingRotation(
-            facingCommand.sourceObject,
-            facingCommand.targetObject,
-            facingCommand.sourceObject.rotation
-          );
-          
-          // Update the command with calculated rotation values
-          command.objectId = facingCommand.sourceObject.id;
-          command.rotationX = newRotation.x;
-          command.rotationY = newRotation.y;
-          command.rotationZ = newRotation.z;
-          
-          enhancedCommands.push(command);
-          return;
+        if (facingCommand.isFacing && facingCommand.targetObject) {
+          if (facingCommand.isBulkOperation && facingCommand.sourceObjects) {
+            // Bulk operation - expand into multiple commands
+            console.log(`🔄 Processing bulk facing operation for ${facingCommand.sourceObjects.length} objects`);
+            const expandedCommands = this.expandBulkCommand(command, facingCommand.sourceObjects, facingCommand.targetObject);
+            enhancedCommands.push(...expandedCommands);
+            return;
+          } else if (facingCommand.sourceObject) {
+            // Single object operation
+            const newRotation = this.calculateFacingRotation(
+              facingCommand.sourceObject,
+              facingCommand.targetObject,
+              facingCommand.sourceObject.rotation
+            );
+            
+            // Update the command with calculated rotation values
+            command.objectId = facingCommand.sourceObject.id;
+            command.rotationX = newRotation.x;
+            command.rotationY = newRotation.y;
+            command.rotationZ = newRotation.z;
+            
+            enhancedCommands.push(command);
+            return;
+          }
         }
       }
       
@@ -1934,12 +2066,14 @@ Object IDs currently in scene: ${objectIds.join(', ')}`;
   }
 
   /**
-   * Detect if a rotation command is asking to face another object
+   * Detect if a rotation command is asking to face another object (supports bulk operations)
    */
   private detectFacingInRotationCommand(command: SceneCommand, sceneObjects: SceneObject[]): {
     isFacing: boolean;
     sourceObject?: SceneObject;
+    sourceObjects?: SceneObject[];
     targetObject?: SceneObject;
+    isBulkOperation?: boolean;
   } {
     // If rotation values are all 0 and there's a description, it might be a facing command
     if (command.action === 'rotate' && 
@@ -1949,17 +2083,39 @@ Object IDs currently in scene: ${objectIds.join(', ')}`;
         command.description) {
       
       console.log(`🔄 Checking rotation command for facing: "${command.description}"`);
+      
+      // Check if this is a bulk operation
+      const bulkInfo = this.detectBulkOperation(command.description);
       const facingInfo = this.detectFacingCommand(command.description);
+      
       if (facingInfo.isFacing && facingInfo.sourceDesc && facingInfo.targetDesc) {
-        const sourceObject = this.findObjectByDescription(facingInfo.sourceDesc, sceneObjects);
         const targetObject = this.findObjectByDescription(facingInfo.targetDesc, sceneObjects);
         
-        if (sourceObject && targetObject) {
-          return {
-            isFacing: true,
-            sourceObject,
-            targetObject
-          };
+        if (targetObject) {
+          if (bulkInfo.isBulk) {
+            // This is a bulk operation - find ALL matching source objects
+            const sourceObjects = this.findObjectsByDescription(facingInfo.sourceDesc, sceneObjects);
+            if (sourceObjects.length > 0) {
+              console.log(`🔄 Bulk facing operation: ${sourceObjects.length} ${facingInfo.sourceDesc} objects → ${targetObject.id}`);
+              return {
+                isFacing: true,
+                sourceObjects,
+                targetObject,
+                isBulkOperation: true
+              };
+            }
+          } else {
+            // Single object operation
+            const sourceObject = this.findObjectByDescription(facingInfo.sourceDesc, sceneObjects);
+            if (sourceObject) {
+              return {
+                isFacing: true,
+                sourceObject,
+                targetObject,
+                isBulkOperation: false
+              };
+            }
+          }
         }
       }
     }
@@ -1984,7 +2140,8 @@ Object IDs currently in scene: ${objectIds.join(', ')}`;
               return {
                 isFacing: true,
                 sourceObject,
-                targetObject
+                targetObject,
+                isBulkOperation: false
               };
             }
           }
