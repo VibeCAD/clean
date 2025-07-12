@@ -106,7 +106,7 @@ export interface AIServiceResult {
     'Bed Single': new Vector3(0, 0, 1), // Beds face forward (foot of bed)
     'Bed Double': new Vector3(0, 0, 1),
     'Table': new Vector3(0, 0, 1), // Tables are omnidirectional but we'll use +Z
-    'Simple table': new Vector3(0, 0, 1),
+    'table': new Vector3(0, 0, 1),
     'Bookcase': new Vector3(0, 0, -1), // Bookcases face backward (books face out)
     'wooden bookshelf': new Vector3(0, 0, -1),
     'Kitchen Fridge': new Vector3(0, 0, -1), // Fridge doors face backward
@@ -876,7 +876,17 @@ AVAILABLE TEXTURES:
 OBJECT TYPES:
 Basic: cube, sphere, cylinder, plane, torus, cone
 Housing: house-basic, house-room, house-hallway, house-roof-flat, house-roof-pitched
-${glbObjectsList}
+GLB Objects (3D Models): ${glbObjectsList}
+
+IMPORTANT: When creating objects, ALWAYS prefer GLB objects over primitive types when available:
+- For furniture items (table, chair, desk, bed, etc.), use the GLB model type if available
+- Only build composite objects from primitives when:
+  1. The specific GLB object doesn't exist
+  2. The user specifically asks for a "custom" or "simple" version
+  3. The user asks to "build" or "make" something from blocks/primitives
+- When user says "table", use type "Table" (GLB model), not primitive cubes
+- When user says "chair", use type "Chair" (GLB model), not primitive cubes
+- When user says "desk", use type "Desk" (GLB model), not primitive cubes
 
 PRECISION SPATIAL INTELLIGENCE:
 - Objects have exact dimensions and bounding boxes
@@ -964,7 +974,37 @@ SPATIAL COMMAND EXAMPLES:
 "Rename the sphere to 'red-ball'":
 [{"action": "rename", "objectId": "sphere-id", "name": "red-ball"}]
 
-COMPOSITE OBJECT EXAMPLES:
+GLB OBJECT EXAMPLES (PREFERRED FOR FURNITURE):
+"Create a table":
+[{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 0}]
+
+"Add a chair to the room":
+[{"action": "create", "type": "Chair", "x": 2, "y": 0, "z": 0}]
+
+"Place a desk against the wall":
+[{"action": "create", "type": "Desk", "x": 0, "y": 0, "z": 0}]
+
+"Add a TV to the scene":
+[{"action": "create", "type": "TV", "x": 0, "y": 0, "z": 3}]
+
+"Create a bookcase":
+[{"action": "create", "type": "Bookcase", "x": -3, "y": 0, "z": 0}]
+
+"Put a table in the room":
+[{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 1}]
+
+"Add a bed to the bedroom":
+[{"action": "create", "type": "Bed Double", "x": 0, "y": 0, "z": 0}]
+
+"Place a computer on the desk":
+[{"action": "create", "type": "Simple computer", "x": 0, "y": 0, "z": 0}]
+
+"Add furniture to the room":
+[{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 0},
+ {"action": "create", "type": "Chair", "x": 2, "y": 0, "z": 0},
+ {"action": "create", "type": "Bookcase", "x": -3, "y": 0, "z": 0}]
+
+COMPOSITE OBJECT EXAMPLES (ONLY when GLB not available or specifically requested):
 "Make a person out of blocks":
 [{"action": "create", "type": "cube", "name": "person-head", "color": "#fce38a", "x": 0, "y": 5, "z": 0, "scaleX": 0.8, "scaleY": 0.8, "scaleZ": 0.8},
  {"action": "create", "type": "cube", "name": "person-torso", "color": "#4ecdc4", "x": 0, "y": 3, "z": 0, "scaleX": 1.2, "scaleY": 1.5, "scaleZ": 0.8},
@@ -980,7 +1020,7 @@ COMPOSITE OBJECT EXAMPLES:
  {"action": "create", "type": "cylinder", "name": "car-wheel-rear-left", "color": "#808080", "x": -1.2, "y": 0.4, "z": -0.6, "scaleX": 0.4, "scaleY": 0.2, "scaleZ": 0.4},
  {"action": "create", "type": "cylinder", "name": "car-wheel-rear-right", "color": "#808080", "x": 1.2, "y": 0.4, "z": -0.6, "scaleX": 0.4, "scaleY": 0.2, "scaleZ": 0.4}]
 
-"Create a simple table":
+"Build a custom table from blocks":
 [{"action": "create", "type": "cube", "name": "table-top", "color": "#8B4513", "x": 0, "y": 1.5, "z": 0, "scaleX": 2, "scaleY": 0.1, "scaleZ": 1.2},
  {"action": "create", "type": "cube", "name": "table-leg-1", "color": "#654321", "x": -0.8, "y": 0.75, "z": -0.5, "scaleX": 0.1, "scaleY": 1.5, "scaleZ": 0.1},
  {"action": "create", "type": "cube", "name": "table-leg-2", "color": "#654321", "x": 0.8, "y": 0.75, "z": -0.5, "scaleX": 0.1, "scaleY": 1.5, "scaleZ": 0.1},

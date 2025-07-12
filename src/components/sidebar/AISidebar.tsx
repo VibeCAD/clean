@@ -472,10 +472,13 @@ export const AISidebar: React.FC<AISidebarProps> = ({
 
       // In a real application, this list would ideally be fetched dynamically
       // or generated at build time to avoid maintaining a static list here.
+      // Updated to match actual GLB files in public/objectLib/HOUSE_ITEMS/
       const glbObjectNames = [
-        'Adjustable Desk', 'Bed Double', 'Bed Single', 'Bookcase', 'Chair', 
-        'Couch Small', 'Desk', 'Simple table', 'Sofa', 'Standing Desk', 
-        'Table', 'TV', 'wooden bookshelf'
+        'Adjustable Desk', 'Bathtub', 'Bed Double', 'Bed Single', 'Bookcase', 
+        'Chair', 'Clothes dryer', 'Couch Small', 'Desk', 'Fan', 
+        'Kitchen Fridge', 'Light Desk', 'Light Stand', 'Oven',
+        'Simple computer', 'Standing Desk', 'Table', 'Toilet', 'TV', 
+        'wooden bookshelf'
       ];
 
       const aiService = createAIService(apiKey, glbObjectNames);
@@ -559,7 +562,7 @@ export const AISidebar: React.FC<AISidebarProps> = ({
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Try: 'move the cube to the right', 'make the cube blue', 'create a red sphere above the cube', 'apply wood texture', 'make it brick'"
+              placeholder="Try: 'Draw Room Panel','move the cube to the right', 'make the cube blue', 'create a red sphere above the cube', 'apply wood texture', 'make it brick'"
               className="ai-text-input"
               disabled={isLoading || !sceneInitialized}
             />
