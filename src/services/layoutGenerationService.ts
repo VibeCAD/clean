@@ -351,7 +351,9 @@ export class LayoutGenerationService {
           const optimization = spaceOptimizer.optimizeSpace(
             roomMesh,
             requirement.type,
-            strategy
+            strategy,
+            undefined,
+            sceneObjects // Pass existing scene objects
           );
 
           if (optimization.maxObjects > 0 && optimization.layouts.length > 0) {
@@ -390,7 +392,6 @@ export class LayoutGenerationService {
   ): GeneratedLayout | null {
     if (optimization.layouts.length === 0) return null;
 
-    const bestLayout = optimization.layouts[0]; // Take the best layout
     const furnitureSpec = furnitureDatabase.getFurniture(objectType);
     
     if (!furnitureSpec) {
@@ -398,11 +399,12 @@ export class LayoutGenerationService {
       return null;
     }
 
-    const objects = bestLayout.positions.map((pos, index) => ({
+    // Each PlacementLayout represents one object placement
+    const objects = optimization.layouts.map((layout, index) => ({
       id: `${objectType.toLowerCase()}-${index + 1}`,
       type: objectType,
-      position: pos.clone(),
-      rotation: new Vector3(0, 0, 0), // Default rotation
+      position: layout.position.clone(),
+      rotation: layout.rotation ? layout.rotation.clone() : new Vector3(0, 0, 0),
       scale: new Vector3(1, 1, 1), // Default scale
       furnitureSpec
     }));

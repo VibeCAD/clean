@@ -59,12 +59,18 @@ export class SpaceAnalysisService {
     // Create optimization config from furniture spec
     const optimizationConfig = this.createOptimizationConfig(furnitureSpec, request.customConstraints);
     
-    // Run space optimization
+    // Filter existing objects to only include those in the same room
+    const existingObjectsInRoom = this.getExistingObjectsInRoom(sceneObjects, request.roomId, roomMesh);
+    
+    console.log(`📋 Found ${existingObjectsInRoom.length} existing objects in room`);
+    
+    // Run space optimization with existing objects
     const optimization = spaceOptimizer.optimizeSpace(
       roomMesh,
       furnitureSpec.type,
       request.strategy || { name: 'maximize', priority: 'maximize', description: 'Maximize capacity' },
-      optimizationConfig
+      optimizationConfig,
+      existingObjectsInRoom
     );
 
     // Analyze room
@@ -296,12 +302,21 @@ export class SpaceAnalysisService {
   ): Promise<{ objectType: string; maxCount: number; efficiency: number }[]> {
     const alternatives: { objectType: string; maxCount: number; efficiency: number }[] = [];
     
+    // Get existing objects in the room
+    const existingObjectsInRoom = this.getExistingObjectsInRoom(sceneObjects, roomMesh.id, roomMesh);
+    
     // Test common furniture types
     const testTypes = ['Chair', 'Desk', 'Table', 'Sofa', 'Bookcase'];
     
     for (const objectType of testTypes) {
       try {
-        const result = spaceOptimizer.optimizeSpace(roomMesh, objectType);
+        const result = spaceOptimizer.optimizeSpace(
+          roomMesh, 
+          objectType, 
+          { name: 'maximize', priority: 'maximize', description: 'Maximize capacity' },
+          undefined,
+          existingObjectsInRoom
+        );
         if (result.maxObjects > 0) {
           alternatives.push({
             objectType,
@@ -379,18 +394,30 @@ export class SpaceAnalysisService {
   public async getCapacityReport(
     roomId: string,
     objectTypes: string[],
-    getMeshById: (id: string) => Mesh | null
+    getMeshById: (id: string) => Mesh | null,
+    sceneObjects?: SceneObject[]
   ): Promise<{ objectType: string; maxObjects: number; efficiency: number; warnings: string[] }[]> {
     const roomMesh = getMeshById(roomId);
     if (!roomMesh) {
       throw new Error(`Room ${roomId} not found`);
     }
 
+    // Get existing objects in the room if scene objects are provided
+    const existingObjectsInRoom = sceneObjects ? 
+      this.getExistingObjectsInRoom(sceneObjects, roomId, roomMesh) : 
+      [];
+
     const results = [];
 
     for (const objectType of objectTypes) {
       try {
-        const optimization = spaceOptimizer.optimizeSpace(roomMesh, objectType);
+        const optimization = spaceOptimizer.optimizeSpace(
+          roomMesh, 
+          objectType,
+          { name: 'maximize', priority: 'maximize', description: 'Maximize capacity' },
+          undefined,
+          existingObjectsInRoom
+        );
         results.push({
           objectType,
           maxObjects: optimization.maxObjects,
@@ -409,6 +436,60 @@ export class SpaceAnalysisService {
     }
 
     return results;
+  }
+
+  /**
+   * Get existing objects that are within the specified room
+   */
+  private getExistingObjectsInRoom(
+    sceneObjects: SceneObject[],
+    roomId: string,
+    roomMesh: Mesh
+  ): SceneObject[] {
+    const roomPolygon = roomMesh.metadata?.floorPolygon || [];
+    if (roomPolygon.length < 3) {
+      return [];
+    }
+
+    // Filter objects that are within the room boundaries
+    const objectsInRoom = sceneObjects.filter(obj => {
+      // Skip the room itself and structural elements
+      if (obj.id === roomId || 
+          obj.type === 'custom-room' || 
+          obj.type === 'ground' ||
+          obj.type.startsWith('house-')) {
+        return false;
+      }
+
+      // Check if object position is inside the room polygon
+      return this.isPointInPolygon(
+        { x: obj.position.x, z: obj.position.z }, 
+        roomPolygon
+      );
+    });
+
+    console.log(`🏠 Objects in room ${roomId}:`, objectsInRoom.map(obj => `${obj.id} (${obj.type})`));
+    
+    return objectsInRoom;
+  }
+
+  /**
+   * Check if a point is inside a polygon (same algorithm as space optimizer)
+   */
+  private isPointInPolygon(point: { x: number; z: number }, polygon: { x: number; z: number }[]): boolean {
+    let isInside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x, zi = polygon[i].z;
+      const xj = polygon[j].x, zj = polygon[j].z;
+
+      const intersect = ((zi > point.z) !== (zj > point.z))
+          && (point.x < (xj - xi) * (point.z - zi) / (zj - zi) + xi);
+      
+      if (intersect) {
+        isInside = !isInside;
+      }
+    }
+    return isInside;
   }
 }
 
