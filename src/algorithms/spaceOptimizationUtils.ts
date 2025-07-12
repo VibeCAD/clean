@@ -47,20 +47,20 @@ export function testSpaceOptimization(): void {
 
   // Test with desks
   console.log('\n📊 Testing desk placement optimization:');
-  const deskResult = spaceOptimizer.optimizeSpace(testRoom, 'Desk');
+  const deskResult = spaceOptimizer.optimizeSpace(testRoom, 'Desk', undefined, undefined, []);
   console.log(`Max desks: ${deskResult.maxObjects}`);
   console.log(`Efficiency: ${(deskResult.efficiency * 100).toFixed(1)}%`);
   console.log(`Warnings: ${deskResult.warnings.join(', ')}`);
 
   // Test with chairs
   console.log('\n🪑 Testing chair placement optimization:');
-  const chairResult = spaceOptimizer.optimizeSpace(testRoom, 'Chair');
+  const chairResult = spaceOptimizer.optimizeSpace(testRoom, 'Chair', undefined, undefined, []);
   console.log(`Max chairs: ${chairResult.maxObjects}`);
   console.log(`Efficiency: ${(chairResult.efficiency * 100).toFixed(1)}%`);
 
   // Test with tables
   console.log('\n🪑 Testing table placement optimization:');
-  const tableResult = spaceOptimizer.optimizeSpace(testRoom, 'Table');
+  const tableResult = spaceOptimizer.optimizeSpace(testRoom, 'Table', undefined, undefined, []);
   console.log(`Max tables: ${tableResult.maxObjects}`);
   console.log(`Efficiency: ${(tableResult.efficiency * 100).toFixed(1)}%`);
 

@@ -1,5 +1,6 @@
 import { Vector3, Mesh } from 'babylonjs';
 import { findContainingRoom } from '../babylon/roomPhysicsUtils';
+import type { SceneObject } from '../types/types';
 
 /**
  * Checks if a 2D point is inside a 2D polygon using the ray-casting algorithm.
@@ -179,7 +180,8 @@ export class SpaceOptimizer {
     roomMesh: Mesh,
     objectType: string,
     strategy: OptimizationStrategy = { name: 'maximize', priority: 'maximize', description: 'Maximize capacity' },
-    customConfig?: Partial<SpaceOptimizationConfig>
+    customConfig?: Partial<SpaceOptimizationConfig>,
+    existingObjects?: SceneObject[]
   ): OptimizationResult {
     console.log(`🔍 Starting space optimization for ${objectType} in room ${roomMesh.id}`);
 
@@ -190,7 +192,7 @@ export class SpaceOptimizer {
     const roomBounds = this.analyzeRoomGeometry(roomMesh);
     
     // Generate placement grid
-    const placementGrid = this.generatePlacementGrid(roomBounds, config);
+    const placementGrid = this.generatePlacementGrid(roomBounds, config, existingObjects);
     
     // Filter valid placement positions
     const validPositions = this.filterValidPositions(placementGrid, roomBounds, config);
@@ -200,7 +202,7 @@ export class SpaceOptimizer {
     
     // Calculate metrics
     const efficiency = this.calculateSpaceEfficiency(layouts, roomBounds);
-    const warnings = this.generateWarnings(layouts, roomBounds, config);
+    const warnings = this.generateWarnings(layouts, roomBounds, config, existingObjects);
 
     const result: OptimizationResult = {
       maxObjects: layouts.length,
@@ -315,7 +317,11 @@ export class SpaceOptimizer {
   /**
    * Generate placement grid for the room
    */
-  private generatePlacementGrid(roomBounds: RoomBounds, config: SpaceOptimizationConfig): PlacementGrid {
+  private generatePlacementGrid(
+    roomBounds: RoomBounds, 
+    config: SpaceOptimizationConfig, 
+    existingObjects?: SceneObject[]
+  ): PlacementGrid {
     // Find bounding box of room
     const minX = Math.min(...roomBounds.floorPolygon.map(p => p.x));
     const maxX = Math.max(...roomBounds.floorPolygon.map(p => p.x));
@@ -349,15 +355,27 @@ export class SpaceOptimizer {
           Vector3.Distance(worldPos, corner) < resolution * 2
         );
 
-        // Calculate available clearance
-        const clearanceRadius = this.calculateAvailableClearance(worldPos, roomBounds, config);
+        // Check if occupied by existing objects
+        const isOccupiedByExisting = this.isPositionOccupiedByExistingObjects(
+          worldPos, 
+          existingObjects || [], 
+          config
+        );
+
+        // Calculate available clearance (accounting for existing objects)
+        const clearanceRadius = this.calculateAvailableClearance(
+          worldPos, 
+          roomBounds, 
+          config, 
+          existingObjects
+        );
 
         cells[i][j] = {
           x: i,
           z: j,
           worldPos,
-          isValid: isValid && distanceToWall >= config.wallOffset,
-          isOccupied: false,
+          isValid: isValid && distanceToWall >= config.wallOffset && !isOccupiedByExisting,
+          isOccupied: isOccupiedByExisting,
           distanceToWall,
           isCorner,
           clearanceRadius
@@ -405,9 +423,93 @@ export class SpaceOptimizer {
   }
 
   /**
+   * Check if a position is occupied by existing objects
+   */
+  private isPositionOccupiedByExistingObjects(
+    position: Vector3,
+    existingObjects: SceneObject[],
+    config: SpaceOptimizationConfig
+  ): boolean {
+    // Filter to only objects that are actually in the room (not walls, roofs, etc.)
+    const furnitureObjects = existingObjects.filter(obj => 
+      !obj.type.startsWith('house-') && 
+      obj.type !== 'ground' && 
+      obj.type !== 'custom-room' &&
+      !obj.id.startsWith('optimized-') // Don't consider already optimized objects
+    );
+
+    for (const obj of furnitureObjects) {
+      // Calculate object's bounding box with some padding
+      const objDimensions = this.getObjectDimensions(obj);
+      const padding = Math.max(config.minClearance, 0.3); // At least 30cm clearance
+      
+      const halfWidth = (objDimensions.width / 2) + padding;
+      const halfDepth = (objDimensions.depth / 2) + padding;
+      
+      // Check if position is within the object's footprint + clearance
+      const dx = Math.abs(position.x - obj.position.x);
+      const dz = Math.abs(position.z - obj.position.z);
+      
+      if (dx <= halfWidth && dz <= halfDepth) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Get object dimensions (similar to AI service method)
+   */
+  private getObjectDimensions(obj: SceneObject): { width: number; height: number; depth: number } {
+    // If actual dimensions are provided (from bounding box), use those
+    if ((obj as any).actualDimensions) {
+      return (obj as any).actualDimensions;
+    }
+    
+    // Otherwise fall back to base dimensions for known types
+    const baseDimensions: { [key: string]: { width: number; height: number; depth: number } } = {
+      'cube': { width: 2, height: 2, depth: 2 },
+      'sphere': { width: 2, height: 2, depth: 2 },
+      'cylinder': { width: 2, height: 2, depth: 2 },
+      'plane': { width: 2, height: 0.1, depth: 2 },
+      'torus': { width: 2, height: 0.5, depth: 2 },
+      'cone': { width: 2, height: 2, depth: 2 },
+      // GLB furniture objects (common dimensions)
+      'Chair': { width: 0.6, height: 0.9, depth: 0.6 },
+      'Desk': { width: 1.2, height: 0.75, depth: 0.8 },
+      'Table': { width: 1.5, height: 0.75, depth: 0.9 },
+      'Simple table': { width: 1.2, height: 0.75, depth: 0.8 },
+      'Sofa': { width: 2.0, height: 0.8, depth: 0.9 },
+      'Couch Small': { width: 1.8, height: 0.8, depth: 0.9 },
+      'Bed Single': { width: 1.0, height: 0.5, depth: 2.0 },
+      'Bed Double': { width: 1.6, height: 0.5, depth: 2.0 },
+      'Bookcase': { width: 0.8, height: 1.8, depth: 0.3 },
+      'wooden bookshelf': { width: 0.8, height: 1.8, depth: 0.3 },
+      'TV': { width: 1.2, height: 0.7, depth: 0.1 },
+      'Standing Desk': { width: 1.2, height: 1.1, depth: 0.8 },
+      'Adjustable Desk': { width: 1.2, height: 0.75, depth: 0.8 }
+    };
+
+    const base = baseDimensions[obj.type] || { width: 1, height: 1, depth: 1 };
+    
+    // Apply scale factors
+    return {
+      width: base.width * obj.scale.x,
+      height: base.height * obj.scale.y,
+      depth: base.depth * obj.scale.z
+    };
+  }
+
+  /**
    * Calculate available clearance around a position
    */
-  private calculateAvailableClearance(position: Vector3, roomBounds: RoomBounds, config: SpaceOptimizationConfig): number {
+  private calculateAvailableClearance(
+    position: Vector3, 
+    roomBounds: RoomBounds, 
+    config: SpaceOptimizationConfig,
+    existingObjects?: SceneObject[]
+  ): number {
     const maxClearance = Math.max(config.minClearance, config.accessClearance) + 1.0;
     
     // Check clearance in multiple directions
@@ -431,6 +533,12 @@ export class SpaceOptimizer {
         
         // Check if still inside room
         if (!isPointInPolygon({ x: testPoint.x, z: testPoint.z }, roomBounds.floorPolygon)) {
+          minClearance = Math.min(minClearance, distance);
+          break;
+        }
+        
+        // Check if blocked by existing objects
+        if (existingObjects && this.isPositionOccupiedByExistingObjects(testPoint, existingObjects, config)) {
           minClearance = Math.min(minClearance, distance);
           break;
         }
@@ -679,12 +787,26 @@ export class SpaceOptimizer {
   private generateWarnings(
     layouts: PlacementLayout[],
     roomBounds: RoomBounds,
-    config: SpaceOptimizationConfig
+    config: SpaceOptimizationConfig,
+    existingObjects?: SceneObject[]
   ): string[] {
     const warnings: string[] = [];
 
     if (layouts.length === 0) {
       warnings.push('No valid placements found. Room may be too small or constraints too strict.');
+      
+      // Check if existing objects are blocking placement
+      if (existingObjects && existingObjects.length > 0) {
+        const furnitureObjects = existingObjects.filter(obj => 
+          !obj.type.startsWith('house-') && 
+          obj.type !== 'ground' && 
+          obj.type !== 'custom-room'
+        );
+        
+        if (furnitureObjects.length > 0) {
+          warnings.push(`Room contains ${furnitureObjects.length} existing object(s) which may be limiting placement options.`);
+        }
+      }
     }
 
     // Check for crowded conditions
@@ -699,6 +821,20 @@ export class SpaceOptimizer {
     );
     if (hasAccessibilityIssues) {
       warnings.push('Some placements may not meet accessibility requirements (minimum 90cm pathways).');
+    }
+
+    // Check proximity to existing objects
+    if (existingObjects && existingObjects.length > 0 && layouts.length > 0) {
+      const tooCloseCount = layouts.filter(layout => {
+        return existingObjects.some(existing => {
+          const distance = Vector3.Distance(layout.position, existing.position);
+          return distance < 1.0; // Less than 1m from existing object
+        });
+      }).length;
+      
+      if (tooCloseCount > 0) {
+        warnings.push(`${tooCloseCount} object(s) may be placed too close to existing furniture.`);
+      }
     }
 
     return warnings;

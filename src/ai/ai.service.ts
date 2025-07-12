@@ -107,6 +107,7 @@ export interface AIServiceResult {
     'Bed Double': new Vector3(0, 0, 1),
     'Table': new Vector3(0, 0, 1), // Tables are omnidirectional but we'll use +Z
     'table': new Vector3(0, 0, 1),
+    'Simple table': new Vector3(0, 0, 1),
     'Bookcase': new Vector3(0, 0, -1), // Bookcases face backward (books face out)
     'wooden bookshelf': new Vector3(0, 0, -1),
     'Kitchen Fridge': new Vector3(0, 0, -1), // Fridge doors face backward
@@ -167,7 +168,13 @@ export interface AIServiceResult {
                         lowerPrompt.includes('space') ||
                         lowerPrompt.includes('optimize') ||
                         lowerPrompt.includes('layout') ||
-                        lowerPrompt.includes('arrange');
+                        lowerPrompt.includes('arrange') ||
+                        lowerPrompt.includes('can i arrange') ||
+                        lowerPrompt.includes('how can i arrange') ||
+                        lowerPrompt.includes('how to arrange') ||
+                        lowerPrompt.includes('place') ||
+                        lowerPrompt.includes('position') ||
+                        lowerPrompt.includes('room layout');
     
     if (!isSpaceQuery) {
       return null;
@@ -197,13 +204,24 @@ export interface AIServiceResult {
       }
     }
 
-    // Common object types
-    const commonTypes = ['desk', 'chair', 'table', 'sofa', 'bed', 'bookcase'];
-    for (const type of commonTypes) {
-      if (lowerPrompt.includes(type)) {
-        targetObjectType = type.charAt(0).toUpperCase() + type.slice(1);
-        break;
+    // Common object types with variations
+    const commonTypes = [
+      { names: ['desk', 'desks'], type: 'Desk' },
+      { names: ['chair', 'chairs'], type: 'Chair' },
+      { names: ['table', 'tables'], type: 'Table' },
+      { names: ['sofa', 'sofas', 'couch', 'couches'], type: 'Sofa' },
+      { names: ['bed', 'beds'], type: 'Bed Single' },
+      { names: ['bookcase', 'bookcases', 'bookshelf', 'bookshelves'], type: 'Bookcase' }
+    ];
+    
+    for (const typeGroup of commonTypes) {
+      for (const name of typeGroup.names) {
+        if (lowerPrompt.includes(name)) {
+          targetObjectType = typeGroup.type;
+          break;
+        }
       }
+      if (targetObjectType) break;
     }
 
     if (!this.getMeshById) {
@@ -822,26 +840,23 @@ export interface AIServiceResult {
     return finalDescription;
   }
 
-  /**
-   * Generate a system prompt for description requests that allows natural language responses
-   */
   private generateDescriptionSystemPrompt(sceneDescription: string, sceneObjects: SceneObject[]): string {
     return `You are a 3D scene assistant. Provide a brief, clear description of what's in the scene.
-SCENE DATA:
-${sceneDescription}
-Your response should be:
-- Simple and direct (1-2 sentences maximum)
-- Focus only on what objects are present
-- No technical details like coordinates or dimensions
-- No flowery language or architectural commentary
-- Just state what's there plainly
-Example good responses:
-- "The scene contains a red cube and a blue sphere."
-- "There's an empty room with gray walls."
-- "The scene has a wooden table with a chair beside it."
-Be concise and factual. Describe only what you can see.`;
+      SCENE DATA:
+      ${sceneDescription}
+      Your response should be:
+      - Simple and direct (1-2 sentences maximum)
+      - Focus only on what objects are present
+      - No technical details like coordinates or dimensions
+      - No flowery language or architectural commentary
+      - Just state what's there plainly
+      Example good responses:
+      - "The scene contains a red cube and a blue sphere."
+      - "There's an empty room with gray walls."
+      - "The scene has a wooden table with a chair beside it."
+      Be concise and factual. Describe only what you can see.`;
   }
-  
+
   /**
    * Generate the system prompt for the AI with enhanced spatial reasoning
    */
@@ -896,17 +911,17 @@ AVAILABLE TEXTURES:
 OBJECT TYPES:
 Basic: cube, sphere, cylinder, plane, torus, cone
 Housing: house-basic, house-room, house-hallway, house-roof-flat, house-roof-pitched
-GLB Objects (3D Models): ${glbObjectsList}
 
-IMPORTANT: When creating objects, ALWAYS prefer GLB objects over primitive types when available:
-- For furniture items (table, chair, desk, bed, etc.), use the GLB model type if available
-- Only build composite objects from primitives when:
-  1. The specific GLB object doesn't exist
-  2. The user specifically asks for a "custom" or "simple" version
-  3. The user asks to "build" or "make" something from blocks/primitives
-- When user says "table", use type "Table" (GLB model), not primitive cubes
-- When user says "chair", use type "Chair" (GLB model), not primitive cubes
-- When user says "desk", use type "Desk" (GLB model), not primitive cubes
+GLB Objects (3D Models): ${glbObjectsList}
+ IMPORTANT: When creating objects, ALWAYS prefer GLB objects over primitive types when available:
+ - For furniture items (table, chair, desk, bed, etc.), use the GLB model type if available
+ - Only build composite objects from primitives when:
+   1. The specific GLB object doesn't exist
+   2. The user specifically asks for a "custom" or "simple" version
+   3. The user asks to "build" or "make" something from blocks/primitives
+ - When user says "table", use type "Table" (GLB model), not primitive cubes
+ - When user says "chair", use type "Chair" (GLB model), not primitive cubes
+ - When user says "desk", use type "Desk" (GLB model), not primitive cubes
 
 PRECISION SPATIAL INTELLIGENCE:
 - Objects have exact dimensions and bounding boxes
@@ -934,7 +949,30 @@ QUANTITY HANDLING:
 - Do NOT introduce a 'count' or 'quantity' property. Instead, output that many individual 'create' commands inside the JSON array.
 - When the user does not specify how the objects should be arranged, position them sensibly (e.g. in a straight line) **with at least one unit of empty space between their bounding boxes**.  For standard 2×2×2 cubes this means keeping their centres ≥ 2.2 units apart (e.g. –1.5 and 1.5 on the X axis).  Always provide explicit 'x', 'y', and 'z' that do not overlap with other objects.
 
-COMPOSITE OBJECT NAMING:
+GLB OBJECT EXAMPLES (PREFERRED FOR FURNITURE):
+ "Create a table":
+ [{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 0}]
+ "Add a chair to the room":
+ [{"action": "create", "type": "Chair", "x": 2, "y": 0, "z": 0}]
+ "Place a desk against the wall":
+ [{"action": "create", "type": "Desk", "x": 0, "y": 0, "z": 0}]
+ "Add a TV to the scene":
+ [{"action": "create", "type": "TV", "x": 0, "y": 0, "z": 3}]
+ "Create a bookcase":
+ [{"action": "create", "type": "Bookcase", "x": -3, "y": 0, "z": 0}]
+ "Put a table in the room":
+ [{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 1}]
+ "Add a bed to the bedroom":
+ [{"action": "create", "type": "Bed Double", "x": 0, "y": 0, "z": 0}]
+ "Place a computer on the desk":
+ [{"action": "create", "type": "Simple computer", "x": 0, "y": 0, "z": 0}]
+ "Add furniture to the room":
+ [{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 0},
+  {"action": "create", "type": "Chair", "x": 2, "y": 0, "z": 0},
+  {"action": "create", "type": "Bookcase", "x": -3, "y": 0, "z": 0}]
+
+
+COMPOSITE OBJECT EXAMPLES (ONLY when GLB not available or specifically requested):
 - When creating composite objects (like "make a person out of blocks", "build a house", "create a car"), assign meaningful descriptive names to each component.
 - Use a consistent naming pattern: [main-object]-[component] (e.g., "person-head", "person-torso", "person-left-arm").
 - For humanoid figures: Use parts like head, torso, left-arm, right-arm, left-leg, right-leg.
@@ -994,37 +1032,7 @@ SPATIAL COMMAND EXAMPLES:
 "Rename the sphere to 'red-ball'":
 [{"action": "rename", "objectId": "sphere-id", "name": "red-ball"}]
 
-GLB OBJECT EXAMPLES (PREFERRED FOR FURNITURE):
-"Create a table":
-[{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 0}]
-
-"Add a chair to the room":
-[{"action": "create", "type": "Chair", "x": 2, "y": 0, "z": 0}]
-
-"Place a desk against the wall":
-[{"action": "create", "type": "Desk", "x": 0, "y": 0, "z": 0}]
-
-"Add a TV to the scene":
-[{"action": "create", "type": "TV", "x": 0, "y": 0, "z": 3}]
-
-"Create a bookcase":
-[{"action": "create", "type": "Bookcase", "x": -3, "y": 0, "z": 0}]
-
-"Put a table in the room":
-[{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 1}]
-
-"Add a bed to the bedroom":
-[{"action": "create", "type": "Bed Double", "x": 0, "y": 0, "z": 0}]
-
-"Place a computer on the desk":
-[{"action": "create", "type": "Simple computer", "x": 0, "y": 0, "z": 0}]
-
-"Add furniture to the room":
-[{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 0},
- {"action": "create", "type": "Chair", "x": 2, "y": 0, "z": 0},
- {"action": "create", "type": "Bookcase", "x": -3, "y": 0, "z": 0}]
-
-COMPOSITE OBJECT EXAMPLES (ONLY when GLB not available or specifically requested):
+COMPOSITE OBJECT EXAMPLES:
 "Make a person out of blocks":
 [{"action": "create", "type": "cube", "name": "person-head", "color": "#fce38a", "x": 0, "y": 5, "z": 0, "scaleX": 0.8, "scaleY": 0.8, "scaleZ": 0.8},
  {"action": "create", "type": "cube", "name": "person-torso", "color": "#4ecdc4", "x": 0, "y": 3, "z": 0, "scaleX": 1.2, "scaleY": 1.5, "scaleZ": 0.8},
@@ -1189,11 +1197,27 @@ SPACE OPTIMIZATION COMMAND EXAMPLES:
 "How many chairs can I fit in the room?":
 [{"action": "analyze-space", "roomId": "custom-room-1", "targetObjectType": "Chair"}]
 
-"Optimize the space for desks":
+"How can I arrange desks in this room?":
 [{"action": "optimize-space", "roomId": "custom-room-1", "targetObjectType": "Desk", "optimizationStrategy": "maximize"}]
 
 "How should I arrange chairs for comfort?":
 [{"action": "optimize-space", "roomId": "custom-room-1", "targetObjectType": "Chair", "optimizationStrategy": "comfort"}]
+
+"Optimize the space for desks":
+ [{"action": "optimize-space", "roomId": "custom-room-1", "targetObjectType": "Desk", "optimizationStrategy": "maximize"}]
+ "Arrange furniture in this room":
+ [{"action": "optimize-space", "roomId": "custom-room-1", "targetObjectType": "Chair", "optimizationStrategy": "maximize"}]
+ "Place desks optimally":
+ [{"action": "optimize-space", "roomId": "custom-room-1", "targetObjectType": "Desk", "optimizationStrategy": "maximize"}]
+
+"Optimize the space for desks":
+[{"action": "optimize-space", "roomId": "custom-room-1", "targetObjectType": "Desk", "optimizationStrategy": "maximize"}]
+
+"Arrange furniture in this room":
+[{"action": "optimize-space", "roomId": "custom-room-1", "targetObjectType": "Chair", "optimizationStrategy": "maximize"}]
+
+"Place desks optimally":
+[{"action": "optimize-space", "roomId": "custom-room-1", "targetObjectType": "Desk", "optimizationStrategy": "maximize"}]
 
 "Analyze space for the selected objects":
 [{"action": "analyze-space", "roomId": "custom-room-1", "useSelectedObjects": true}]
