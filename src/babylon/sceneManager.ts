@@ -52,6 +52,44 @@ export class SceneManager {
   }
 
   /**
+   * Adjusts the mesh pivot to its bottom center, ensuring it sits properly on the floor
+   * Similar to the GLB importer's adjustPivotToBottom method
+   * @param mesh The mesh to adjust
+   */
+  private adjustGLBPivotToBottom(mesh: Mesh): void {
+    console.log('🎯 Adjusting GLB pivot to bottom center');
+    
+    // Force update of world matrix
+    mesh.computeWorldMatrix(true);
+    
+    // Get the bounding info in world space
+    const boundingInfo = mesh.getBoundingInfo();
+    const worldMin = boundingInfo.boundingBox.minimumWorld;
+    const worldMax = boundingInfo.boundingBox.maximumWorld;
+    
+    // Calculate the center bottom point in world space
+    const bottomCenterWorld = new Vector3(
+      (worldMin.x + worldMax.x) / 2,
+      worldMin.y,
+      (worldMin.z + worldMax.z) / 2
+    );
+    
+    // Convert to local space
+    const worldToLocal = new Matrix();
+    mesh.getWorldMatrix().invertToRef(worldToLocal);
+    const bottomCenterLocal = Vector3.TransformCoordinates(bottomCenterWorld, worldToLocal);
+    
+    // Create a pivot at the bottom center
+    mesh.setPivotPoint(bottomCenterLocal);
+    
+    // Adjust position so the bottom sits at y=0 (or the specified Y position)
+    const originalY = mesh.position.y;
+    mesh.position.y = originalY;
+    
+    console.log(`✅ GLB pivot adjusted to bottom center at local (${bottomCenterLocal.x.toFixed(3)}, ${bottomCenterLocal.y.toFixed(3)}, ${bottomCenterLocal.z.toFixed(3)})`);
+  }
+
+  /**
    * Applies auto-scaling to GLB models to fit within reasonable bounds
    * @param mesh The root mesh of the GLB model
    * @param sceneObject The scene object containing scale information
@@ -348,6 +386,9 @@ export class SceneManager {
                   
                   // Auto-scale GLB objects to fit within reasonable bounds (similar to GLBImporter)
                   this.applyGLBAutoScaling(rootMesh, sceneObject);
+                  
+                  // Adjust pivot to bottom center so object sits properly on floor
+                  this.adjustGLBPivotToBottom(rootMesh);
                   
                   // Make it pickable and handle collisions
                   rootMesh.isPickable = true;
