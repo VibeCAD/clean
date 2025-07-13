@@ -14,9 +14,6 @@ import { useBabylonScene } from './babylon/hooks/useBabylonScene'
 // Import the new AISidebar component
 import { AISidebar } from './components/sidebar/AISidebar'
 
-// Import the CompassOverlay component
-import { CompassOverlay } from './components/ui/CompassOverlay'
-
 // Import the MeasurementOverlay component
 import { MeasurementOverlay } from './components/ui/MeasurementOverlay'
 
@@ -2101,8 +2098,6 @@ function App() {
             className="babylon-canvas" 
             onLoad={() => console.log('📺 Canvas onLoad event')}
           />
-          {/* Compass overlay for directional reference */}
-          <CompassOverlay />
           {/* Measurement overlay for grid coordinates and distance measurement */}
           <MeasurementOverlay scene={sceneAPI.getSceneManager()?.getScene() || null} />
           {/* Selection mode indicator for multi-select feedback */}
