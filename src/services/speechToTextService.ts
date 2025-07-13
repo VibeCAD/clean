@@ -126,13 +126,6 @@ export class SpeechToTextService {
       // Process the result
       const result = this.processTranscriptionResult(transcription, audioResult, startTime);
 
-      // Update progress
-      this.updateProgress({
-        stage: 'complete',
-        progress: 1.0,
-        message: 'Transcription completed successfully!'
-      });
-
       console.log('✅ Transcription completed successfully');
       console.log('📝 Transcription result:', {
         text: result.text,
