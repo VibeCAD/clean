@@ -961,7 +961,7 @@ function App() {
   const renderTopToolbar = () => (
     <div className="top-toolbar">
       <div className="toolbar-menu">
-        <div className="toolbar-brand">VibeCad Pro</div>
+        <div className="text-4xl font-bold text-pink-500">MOORPH</div>
         
         <div className="toolbar-status">
           <span className="status-item">
