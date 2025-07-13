@@ -7,6 +7,7 @@ import {
   MeshBuilder, 
   StandardMaterial, 
   Color3, 
+  Color4, 
   Mesh, 
   GizmoManager,
   PointerEventTypes,
@@ -142,6 +143,9 @@ export class SceneManager {
       // Create engine and scene
       this.engine = new Engine(canvas, true)
       this.scene = new Scene(this.engine)
+      
+      // Set scene background to much darker purple
+      this.scene.clearColor = new Color4(0.05, 0.03, 0.15, 1.0)
       
       // Initialize texture manager
       this.textureManager = new TextureManager(this.scene)
