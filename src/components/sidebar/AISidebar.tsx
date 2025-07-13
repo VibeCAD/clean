@@ -437,10 +437,10 @@ export const AISidebar: React.FC<AISidebarProps> = ({
             </div>
           )}
           
-          {/* AI Control Group - Moved to lower left corner */}
+          {/* AI Control Group - Moved to lower right corner */}
           <div className="ai-control-group">
             <div className="ai-prompt-moved-notice">
-              <p>📍 AI Command Input has been moved to the lower left corner of the screen</p>
+              <p>📍 AI Command Input has been moved to the lower right corner of the screen</p>
             </div>
           </div>
 
@@ -458,8 +458,12 @@ export const AISidebar: React.FC<AISidebarProps> = ({
             </div>
           </div>
 
-          {/* Scene Graph Component */}
-          <SceneGraph />
+          {/* Scene Graph Component - Moved to AI Prompt Box */}
+          <div className="ai-control-group">
+            <div className="ai-prompt-moved-notice">
+              <p>📦 Scene Objects have been moved to the AI Prompt Box (lower right corner)</p>
+            </div>
+          </div>
 
           {/* Properties Panel Component */}
           <PropertiesPanel />
@@ -474,7 +478,7 @@ export const AISidebar: React.FC<AISidebarProps> = ({
           {/* AI Response Log - Moved to AI Prompt Box */}
           <div className="ai-control-group">
             <div className="ai-prompt-moved-notice">
-              <p>📝 AI Response Log has been moved to the AI Prompt Box (lower left corner)</p>
+              <p>📝 AI Response Log has been moved to the AI Prompt Box (lower right corner)</p>
             </div>
           </div>
         </div>

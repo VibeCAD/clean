@@ -10,6 +10,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #1a0f1d;
 }
 
 .app-container {
@@ -19,6 +20,7 @@ body {
   width: 100vw;
   overflow: hidden;
   position: relative;
+  background: #1a0f1d;
 }
 
 .main-content {
@@ -28,6 +30,7 @@ body {
   position: relative;
   width: 100%;
   height: 100%;
+  background: #1a0f1d;
 }
 
 .canvas-container {
@@ -48,6 +51,13 @@ body {
   position: absolute;
   top: 0;
   left: 0;
+  background: #0a0508;
+}
+
+/* Additional canvas darkening - targets the specific canvas you mentioned */
+#root > div > div.main-content > div > canvas {
+  background: #0a0508 !important;
+  filter: brightness(0.8) contrast(1.1);
 }
 
 /* Top Toolbar Styles */

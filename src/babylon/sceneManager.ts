@@ -824,8 +824,8 @@ export class SceneManager {
     
     // Create line system
     const lineSystem = MeshBuilder.CreateLineSystem('grid', { lines }, this.scene)
-    lineSystem.color = new Color3(0.5, 0.5, 0.5)
-    lineSystem.alpha = 0.3
+    lineSystem.color = new Color3(0.9, 0.9, 0.9)
+    lineSystem.alpha = 0.7
     lineSystem.isPickable = false
     
     this.gridMesh = lineSystem

@@ -11,11 +11,9 @@ import { materialPresets } from './types/types'
 // Import the new hook
 import { useBabylonScene } from './babylon/hooks/useBabylonScene'
 
-// Import the new AISidebar component
-import { AISidebar } from './components/sidebar/AISidebar'
+// AISidebar component removed - functionality moved to AI prompt box and toolbar
 
-// Import the CompassOverlay component
-import { CompassOverlay } from './components/ui/CompassOverlay'
+// CompassOverlay component removed
 
 // Import the MeasurementOverlay component
 import { MeasurementOverlay } from './components/ui/MeasurementOverlay'
@@ -28,7 +26,7 @@ import type { SceneObject, PrimitiveType, TransformMode, ControlPointVisualizati
 import { CustomRoomModal } from './components/modals/CustomRoomModal'
 import { SelectionModeIndicator } from './components/ui/SelectionModeIndicator'
 import { SelectionInfoDisplay } from './components/ui/SelectionInfoDisplay'
-import { UndoRedoIndicator } from './components/ui/UndoRedoIndicator'
+// UndoRedoIndicator component removed
 import { AIPromptBox } from './components/ui/AIPromptBox'
 import { ActionButtonsOverlay } from './components/ui/ActionButtonsOverlay'
 import { Dock, DockIcon } from './components/magicui/dock'
@@ -45,10 +43,6 @@ const SceneDescriptionPanel = ({ description, onClose }: { description: string, 
     <div 
       className="scene-description-panel"
       style={{
-        position: 'fixed',
-        bottom: '230px', // Position so bottom of panel is at top of AIPromptBox
-        left: '20px',
-        zIndex: 10001, // Higher than AIPromptBox which is 10000
         backgroundColor: '#2c2c2e',
         padding: '15px',
         borderRadius: '8px',
@@ -83,6 +77,9 @@ function App() {
   
   // AI Response Log state
   const [showResponseLog, setShowResponseLog] = useState(false)
+  
+  // Scene Objects state
+  const [showSceneObjects, setShowSceneObjects] = useState(false)
   
   // Use the new babylon scene hook
   const { sceneAPI, sceneInitialized } = useBabylonScene(canvasRef)
@@ -712,10 +709,10 @@ function App() {
       color: '#DEB887',
       isNurbs: false,
       roomName: name,
-      gridInfo: {
-        gridSize: roomData.gridSize || 20,
-        worldScale: SCALE,
-        drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
+        gridInfo: {
+          gridSize: roomData.gridSize || 20,
+          worldScale: SCALE,
+          drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
       }
     }
 
@@ -1000,7 +997,7 @@ function App() {
   const renderTopToolbar = () => (
     <div className="top-toolbar">
       <div className="toolbar-menu">
-        <div className="text-2xl font-bold text-blue">MOORPH</div>
+        <div className="text-2xl font-bold text-red-100">MOORPH</div>
         
 
         
@@ -2217,8 +2214,6 @@ function App() {
             className="babylon-canvas" 
             onLoad={() => console.log('📺 Canvas onLoad event')}
           />
-          {/* Compass overlay for directional reference */}
-          <CompassOverlay />
           {/* Measurement overlay for grid coordinates and distance measurement */}
           <MeasurementOverlay scene={sceneAPI.getSceneManager()?.getScene() || null} />
           {/* Action Buttons Overlay - Test Cube, Import/Export buttons side by side */}
@@ -2232,15 +2227,7 @@ function App() {
           <KeyboardShortcutsHelp />
           {/* Selection mode indicator for multi-select feedback */}
           <SelectionModeIndicator isVisible={sceneInitialized} />
-          {/* Undo/Redo indicator and controls */}
-          <UndoRedoIndicator />
         </div>
-        <AISidebar 
-          apiKey={apiKey}
-          sceneInitialized={sceneInitialized}
-          sceneAPI={sceneAPI}
-          onOpenCustomRoomModal={handleOpenCustomRoomModal}
-        />
       </div>
       {/* Custom Room Drawing Modal */}
       <CustomRoomModal
@@ -2252,20 +2239,343 @@ function App() {
       
       {/* Scene Description Panel - Above AI Prompt Box */}
       {showDescriptionPanel && (
-        <SceneDescriptionPanel 
-          description={sceneDescription} 
-          onClose={() => setShowDescriptionPanel(false)} 
-        />
+        <div style={{
+          position: 'fixed',
+          bottom: '230px',
+          right: '20px',
+          zIndex: 10001
+        }}>
+          <SceneDescriptionPanel 
+            description={sceneDescription} 
+            onClose={() => setShowDescriptionPanel(false)} 
+          />
+        </div>
       )}
       
-      {/* AI Prompt Box - Lower Left Corner */}
+      {/* AI Prompt Box - Lower Right Corner */}
       <AIPromptBox
         value={textInput}
         onChange={setTextInput}
         onSubmit={handleAIPromptSubmit}
         isLoading={isLoading}
         isDisabled={!sceneInitialized}
+        showResponseLog={showResponseLog}
+        onToggleResponseLog={() => setShowResponseLog(!showResponseLog)}
+        showSceneObjects={showSceneObjects}
+        onToggleSceneObjects={() => setShowSceneObjects(!showSceneObjects)}
       />
+      
+      {/* AI Response Log Overlay */}
+      {showResponseLog && (
+        <div style={{
+          position: 'fixed',
+          bottom: '230px',
+          right: '440px',
+          zIndex: 10002,
+          width: '500px',
+          maxHeight: '300px',
+          backgroundColor: '#ffffff',
+          border: '2px solid #3b82f6',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+          padding: '16px',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#374151'
+            }}>
+              📝 AI Response Log
+            </div>
+            <button
+              onClick={() => setShowResponseLog(false)}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                fontSize: '16px',
+                cursor: 'pointer',
+                color: '#6b7280'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+          <div style={{
+            maxHeight: '240px',
+            overflowY: 'auto',
+            padding: '8px',
+            backgroundColor: '#f9fafb',
+            borderRadius: '6px',
+            border: '1px solid #e5e7eb'
+          }}>
+            {responseLog.slice(-8).map((log, index) => (
+              <div
+                key={index}
+                style={{
+                  padding: '8px 12px',
+                  margin: '4px 0',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  lineHeight: '1.4',
+                  backgroundColor: log.startsWith('User:') ? '#e0f2fe' : log.startsWith('AI:') ? '#f0f9ff' : '#fef2f2',
+                  borderLeft: `3px solid ${log.startsWith('User:') ? '#0891b2' : log.startsWith('AI:') ? '#0284c7' : '#ef4444'}`,
+                  wordBreak: 'break-word'
+                }}
+              >
+                {log}
+              </div>
+            ))}
+            {responseLog.length === 0 && (
+              <div style={{
+                padding: '20px',
+                textAlign: 'center',
+                color: '#6b7280',
+                fontSize: '14px'
+              }}>
+                No AI responses yet. Try entering a command in the prompt box.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Scene Objects Overlay */}
+      {showSceneObjects && (
+                 <div style={{
+           position: 'fixed',
+           bottom: '230px',
+           right: '960px',
+           zIndex: 10002,
+          width: '400px',
+          maxHeight: '400px',
+          backgroundColor: '#ffffff',
+          border: '2px solid #3b82f6',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+          padding: '16px',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#374151'
+            }}>
+              📦 Scene Objects ({sceneObjects.filter(obj => obj.type !== 'ground').length})
+            </div>
+            <button
+              onClick={() => setShowSceneObjects(false)}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                fontSize: '16px',
+                cursor: 'pointer',
+                color: '#6b7280'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div style={{
+            fontSize: '12px',
+            color: '#6b7280',
+            marginBottom: '12px'
+          }}>
+            💡 {multiSelectMode ? 'Multi-select mode: Ctrl+Click to select multiple' : 'Click objects to select them'}
+          </div>
+          
+          <div style={{
+            maxHeight: '280px',
+            overflowY: 'auto',
+            padding: '8px',
+            backgroundColor: '#f9fafb',
+            borderRadius: '6px',
+            border: '1px solid #e5e7eb'
+          }}>
+            {sceneObjects.filter(obj => obj.type !== 'ground').map(obj => {
+              const isSelected = selectedObjectId === obj.id || selectedObjectIds.includes(obj.id);
+              const isVisible = objectVisibility[obj.id] !== false;
+              const isLocked = objectLocked[obj.id] || false;
+              
+              return (
+                <div
+                  key={obj.id}
+                  onClick={() => setSelectedObjectId(obj.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    margin: '4px 0',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    backgroundColor: isSelected ? '#e0f2fe' : 'transparent',
+                    border: isSelected ? '2px solid #0284c7' : '1px solid #e5e7eb',
+                    opacity: isVisible ? 1 : 0.5,
+                    fontSize: '13px'
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flex: 1
+                  }}>
+                    <div style={{
+                      width: '12px',
+                      height: '12px',
+                      backgroundColor: obj.color,
+                      borderRadius: '3px',
+                      border: '1px solid #d1d5db'
+                    }}></div>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      flex: 1
+                    }}>
+                      <div style={{
+                        fontWeight: '500',
+                        color: '#374151'
+                      }}>
+                        {obj.id}
+                      </div>
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#6b7280'
+                      }}>
+                        {obj.type}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    gap: '4px'
+                  }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setObjectVisibility(obj.id, !isVisible);
+                      }}
+                      style={{
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        opacity: isVisible ? 1 : 0.5
+                      }}
+                      title={isVisible ? 'Hide object' : 'Show object'}
+                    >
+                      {isVisible ? '👁️' : '🚫'}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setObjectLocked(obj.id, !isLocked);
+                        if (!isLocked) {
+                          clearSelection();
+                        }
+                      }}
+                      style={{
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        opacity: isLocked ? 1 : 0.5
+                      }}
+                      title={isLocked ? 'Unlock object' : 'Lock object'}
+                    >
+                      {isLocked ? '🔒' : '🔓'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {sceneObjects.filter(obj => obj.type !== 'ground').length === 0 && (
+              <div style={{
+                padding: '20px',
+                textAlign: 'center',
+                color: '#6b7280',
+                fontSize: '14px'
+              }}>
+                No objects in scene<br/>
+                <small>Use the Create menu to add objects</small>
+              </div>
+            )}
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: '12px',
+            fontSize: '12px',
+            color: '#6b7280'
+          }}>
+            <div>
+              Selected: {selectedObjectId ? 1 : selectedObjectIds.length} | 
+              Hidden: {Object.values(objectVisibility).filter(v => v === false).length} | 
+              Locked: {Object.values(objectLocked).filter(v => v === true).length}
+            </div>
+            <button
+              onClick={() => {
+                clearAllObjects();
+                setShowSceneObjects(false);
+              }}
+              disabled={sceneObjects.filter(obj => obj.type !== 'ground').length === 0}
+              style={{
+                backgroundColor: sceneObjects.filter(obj => obj.type !== 'ground').length === 0 ? '#9ca3af' : '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                fontSize: '11px',
+                cursor: sceneObjects.filter(obj => obj.type !== 'ground').length === 0 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Test Dock Component */}
+      <div className="fixed bottom-5 left-1/2 transform -translate-x-1/2 z-[1000]">
+        <Dock direction="middle">
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">🏠</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">🎨</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">🔧</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">👁️</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">📊</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">⚙️</div>
+          </DockIcon>
+        </Dock>
+      </div>
     </div>
   )
 }

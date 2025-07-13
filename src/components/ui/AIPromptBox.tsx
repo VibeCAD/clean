@@ -9,6 +9,8 @@ interface AIPromptBoxProps {
   placeholder?: string;
   showResponseLog?: boolean;
   onToggleResponseLog?: () => void;
+  showSceneObjects?: boolean;
+  onToggleSceneObjects?: () => void;
 }
 
 export const AIPromptBox: React.FC<AIPromptBoxProps> = ({
@@ -19,7 +21,9 @@ export const AIPromptBox: React.FC<AIPromptBoxProps> = ({
   isDisabled,
   placeholder = "Try: 'move the cube to the right', 'make the cube blue', 'create a red sphere above the cube', 'apply wood texture', 'make it brick'",
   showResponseLog = false,
-  onToggleResponseLog
+  onToggleResponseLog,
+  showSceneObjects = false,
+  onToggleSceneObjects
 }) => {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Check for Cmd+Enter on macOS or Ctrl+Enter on other systems
@@ -41,7 +45,7 @@ export const AIPromptBox: React.FC<AIPromptBoxProps> = ({
 
   // Component mount logging
   React.useEffect(() => {
-    console.log('🚀 AIPromptBox component mounted in lower left corner!');
+    console.log('🚀 AIPromptBox component mounted in lower right corner!');
   }, []);
 
   return (
@@ -49,7 +53,7 @@ export const AIPromptBox: React.FC<AIPromptBoxProps> = ({
       style={{
         position: 'fixed',
         bottom: '20px',
-        left: '20px',
+        right: '20px',
         zIndex: 10000,
         width: '400px',
         backgroundColor: '#ffffff',
@@ -137,6 +141,26 @@ export const AIPromptBox: React.FC<AIPromptBoxProps> = ({
                 }}
               >
                 📝 Log
+              </button>
+            )}
+            {onToggleSceneObjects && (
+              <button 
+                onClick={onToggleSceneObjects}
+                style={{
+                  backgroundColor: showSceneObjects ? '#3b82f6' : '#f3f4f6',
+                  color: showSceneObjects ? 'white' : '#374151',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                📦 Objects
               </button>
             )}
           </div>
