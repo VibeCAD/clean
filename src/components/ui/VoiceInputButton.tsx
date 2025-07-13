@@ -112,7 +112,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
   // Get button icon based on state
   const getButtonIcon = () => {
     const state = getButtonState();
-    const iconSize = size === 'small' ? 12 : size === 'large' ? 20 : 16;
+    const iconSize = size === 'small' ? 16 : size === 'large' ? 24 : 20;
     
     switch (state) {
       case 'recording':
@@ -240,7 +240,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
     } else {
       // idle/active state
       if (variant === 'minimal') {
-        stateClasses = 'bg-transparent border-blue-500 text-blue-500 hover:bg-blue-500/10';
+        stateClasses = 'bg-transparent border-white/30 text-white hover:bg-white/10';
       } else if (variant === 'secondary') {
         stateClasses = 'bg-gray-500 border-gray-500 text-white hover:bg-gray-600 shadow-lg shadow-gray-500/25';
       } else {
@@ -252,7 +252,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
     const focusClasses = state === 'recording' ? 'focus:ring-red-500' 
       : state === 'error' ? 'focus:ring-red-500'
       : state === 'processing' ? 'focus:ring-orange-500'
-      : 'focus:ring-blue-500';
+      : 'focus:ring-white/50';
     
     return cn(baseClasses, sizeClasses, stateClasses, focusClasses, className);
   };

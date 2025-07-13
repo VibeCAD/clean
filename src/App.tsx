@@ -126,6 +126,14 @@ function App() {
     }
   }, [sceneInitialized]);
 
+  // Sync voice input enabled state with FloatingChatModal on app start
+  useEffect(() => {
+    // Ensure scene store voice input is enabled since FloatingChatModal has voiceInputEnabled={true}
+    const { setVoiceInputEnabled } = useSceneStore.getState();
+    setVoiceInputEnabled(true);
+    console.log('🎤 Synced voice input enabled state to true');
+  }, []);
+
   // --- START: Reading state from the Zustand store ---
   const {
     // State properties
@@ -2307,6 +2315,7 @@ function App() {
         isLoading={floatingChat.isLoading}
         sceneInitialized={floatingChat.sceneInitialized}
         voiceInputEnabled={true} // Enable voice input explicitly
+        apiKey={apiKey} // Pass the API key for speech-to-text
         // recordingState={undefined}
         // transcriptionProgress={undefined}
       />

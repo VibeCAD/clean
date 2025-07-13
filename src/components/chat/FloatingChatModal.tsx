@@ -30,6 +30,7 @@ interface FloatingChatModalProps {
   sceneInitialized: boolean;
   // Voice input props (keeping for backwards compatibility)
   voiceInputEnabled?: boolean;
+  apiKey?: string; // OpenAI API key for speech-to-text
   recordingState?: RecordingState;
   transcriptionProgress?: TranscriptionProgress;
   onStartVoiceRecording?: () => void;
@@ -47,6 +48,7 @@ export default function FloatingChatModal({
   isLoading,
   sceneInitialized,
   voiceInputEnabled = false, // Disable by default to prevent auto-initialization
+  apiKey, // OpenAI API key for speech-to-text
   recordingState: externalRecordingState,
   transcriptionProgress: externalTranscriptionProgress,
   onStartVoiceRecording,
@@ -77,7 +79,7 @@ export default function FloatingChatModal({
     error: null,
     isProcessing: false
   });
-  const [internalTranscriptionProgress, setInternalTranscriptionProgress] = useState<TranscriptionProgress | undefined>();
+
   
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const audioServiceRef = useRef<any>(null);
@@ -107,16 +109,15 @@ export default function FloatingChatModal({
         });
 
         // Initialize speech service if we have an API key
-        const apiKey = process.env.VITE_OPENAI_API_KEY || localStorage.getItem('openai_api_key');
-        if (apiKey) {
-          speechServiceRef.current = createSpeechToTextService(apiKey);
+        const resolvedApiKey = apiKey || import.meta.env.VITE_OPENAI_API_KEY || localStorage.getItem('openai_api_key');
+        if (resolvedApiKey) {
+                      speechServiceRef.current = createSpeechToTextService(resolvedApiKey);
           
-          // Set up transcription progress listener with debouncing
+          // Set up transcription progress listener (console only)
           speechServiceRef.current.onProgress((progress: TranscriptionProgress) => {
             clearTimeout(progressTimeoutId);
             progressTimeoutId = setTimeout(() => {
               console.log('📊 Transcription progress:', progress);
-              setInternalTranscriptionProgress(progress);
             }, 100); // 100ms debounce for progress updates
           });
         } else {
@@ -142,7 +143,7 @@ export default function FloatingChatModal({
         }));
       }
     }
-  }, [voiceInputEnabled, externalAudioService]);
+  }, [voiceInputEnabled, externalAudioService, apiKey]);
 
   // Listen for keyboard shortcut events
   useEffect(() => {
@@ -162,7 +163,6 @@ export default function FloatingChatModal({
 
   // Use external state if provided, otherwise use internal state
   const currentRecordingState = externalRecordingState || internalRecordingState;
-  const currentTranscriptionProgress = externalTranscriptionProgress || internalTranscriptionProgress;
 
   // Dock animation values - same as dock.tsx
   const mouseX = useMotionValue(Infinity);
@@ -216,43 +216,74 @@ export default function FloatingChatModal({
     }
 
     try {
-      if (currentRecordingState.isRecording) {
+      // Get real-time state directly from the service to avoid stale state
+      const realTimeState = audioServiceRef.current.getState();
+      console.log('🔍 Real-time recording state:', realTimeState.isRecording);
+      
+      if (realTimeState.isRecording) {
         console.log('🛑 Stopping recording...');
         const result = await audioServiceRef.current.stopRecording();
         
         if (result && speechServiceRef.current) {
           console.log('🎯 Processing transcription...');
-          setInternalTranscriptionProgress({
-            stage: 'preparing',
-            progress: 0.1,
-            message: 'Preparing audio for transcription...'
-          });
 
           try {
             const transcriptionResult = await speechServiceRef.current.transcribeAudio(result);
             console.log('✅ Transcription completed:', transcriptionResult.text);
             
-            // Add transcribed text to message input
-            setMessage(prev => prev + (prev ? ' ' : '') + transcriptionResult.text);
+            // Add transcribed text to message input and auto-submit
+            const finalMessage = (message ? message + ' ' : '') + transcriptionResult.text;
+            console.log('📝 Previous message:', message);
+            console.log('📝 Transcribed text:', transcriptionResult.text);
+            console.log('📝 Final message for auto-submit:', finalMessage);
             
-            // Focus the input
-            chatInputRef.current?.focus();
+            // Set the message first
+            setMessage(finalMessage);
             
-            // Clear transcription progress
-            setInternalTranscriptionProgress(undefined);
+            // Auto-submit the transcribed text after a short delay to ensure state updates
+            setTimeout(() => {
+              console.log('🚀 Auto-submitting transcribed message...');
+              
+              if (finalMessage.trim() && !isLoading && sceneInitialized) {
+                // Add user message to chat
+                const userMessage: Message = {
+                  id: Date.now().toString(),
+                  content: finalMessage.trim(),
+                  sender: 'user',
+                  timestamp: new Date(),
+                };
+                
+                setMessages(prev => [...prev, userMessage]);
+                
+                // Add loading AI message
+                const loadingMessage: Message = {
+                  id: (Date.now() + 1).toString(),
+                  content: '',
+                  sender: 'ai',
+                  timestamp: new Date(),
+                  isLoading: true,
+                };
+                
+                setMessages(prev => [...prev, loadingMessage]);
+                
+                // Submit to parent for AI processing
+                onSubmit(finalMessage.trim());
+                
+                // Clear the input
+                setMessage('');
+                
+                console.log('✅ Auto-submit completed');
+              } else {
+                console.warn('⚠️ Cannot auto-submit:', { 
+                  hasMessage: !!finalMessage.trim(), 
+                  isLoading, 
+                  sceneInitialized 
+                });
+              }
+            }, 100);
             
           } catch (transcriptionError) {
             console.error('❌ Transcription failed:', transcriptionError);
-            setInternalTranscriptionProgress({
-              stage: 'error',
-              progress: 0,
-              message: 'Transcription failed'
-            });
-            
-            // Clear error after a delay
-            setTimeout(() => {
-              setInternalTranscriptionProgress(undefined);
-            }, 3000);
           }
         }
       } else {
@@ -279,10 +310,12 @@ export default function FloatingChatModal({
     }
     
     // Call external handlers if provided
-    if (currentRecordingState.isRecording) {
-      onStopVoiceRecording?.();
+    // Note: Use inverse logic since we just toggled the state
+    const finalState = audioServiceRef.current.getState();
+    if (finalState.isRecording) {
+      onStartVoiceRecording?.(); // Just started recording
     } else {
-      onStartVoiceRecording?.();
+      onStopVoiceRecording?.(); // Just stopped recording
     }
     onToggleVoiceRecording?.();
   };
@@ -395,7 +428,6 @@ export default function FloatingChatModal({
                 <VoiceInputButton
                   disabled={!sceneInitialized}
                   recordingState={currentRecordingState}
-                  transcriptionProgress={currentTranscriptionProgress}
                   onToggle={() => {}} // Handled by ChatDockIcon onClick
                   onStartRecording={() => {}} // Handled by ChatDockIcon onClick
                   onStopRecording={() => {}} // Handled by ChatDockIcon onClick
@@ -454,11 +486,7 @@ export default function FloatingChatModal({
                     Recording... {currentRecordingState.duration.toFixed(1)}s
                   </span>
                 )}
-                {currentTranscriptionProgress && (
-                  <span className="text-xs text-blue-300 font-medium">
-                    {currentTranscriptionProgress.message}
-                  </span>
-                )}
+
               </div>
               <Button
                 variant="ghost"
