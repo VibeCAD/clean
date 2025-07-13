@@ -1127,6 +1127,10 @@ function App() {
                   <span className="dropdown-icon">🔺</span>
                   Cone
                 </button>
+                <button className="dropdown-button" onClick={() => createPrimitive('rectangle')}>
+                  <span className="dropdown-icon">▭</span>
+                  Rectangle
+                </button>
                 {/* NURBS option removed */}
               </div>
             </div>

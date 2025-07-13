@@ -76,6 +76,23 @@ export const createCone = (scene: Scene, options: MeshCreationOptions = {}): Mes
 };
 
 /**
+ * Creates a rectangle mesh with the specified options
+ * Default dimensions: 2x2x2 (same as cube)
+ */
+export const createRectangle = (scene: Scene, options: MeshCreationOptions = {}): Mesh => {
+  // Create a box with 2x2x2 dimensions (same as cube)
+  const mesh = MeshBuilder.CreateBox(options.name || 'rectangle', { 
+    width: 2,  // Same as cube width
+    height: 2, // Same as cube height
+    depth: 2   // Same as cube depth
+  }, scene);
+  
+  applyMeshOptions(mesh, options);
+  attachConnectionPoints(mesh, 'rectangle');
+  return mesh;
+};
+
+/**
  * Creates a ground plane mesh with the specified options
  */
 export const createGround = (scene: Scene, options: MeshCreationOptions = {}): Mesh => {
@@ -124,6 +141,8 @@ export const createPrimitiveMesh = (
       return createTorus(scene, options);
     case 'cone':
       return createCone(scene, options);
+    case 'rectangle':
+      return createRectangle(scene, options);
     case 'nurbs':
       // NURBS is handled separately, not through this factory
       throw new Error('NURBS meshes are not supported in this factory');
@@ -212,6 +231,21 @@ const attachConnectionPoints = (mesh: Mesh, type: PrimitiveType): void => {
       connectionPoints = [
         { id: 'pz', position: new Vector3(0, 0, 0.01), normal: new Vector3(0, 0, 1) },
         { id: 'nz', position: new Vector3(0, 0, -0.01), normal: new Vector3(0, 0, -1) },
+      ];
+      break;
+    }
+    case 'rectangle': {
+      const halfX = 1.0 * mesh.scaling.x;  // 2/2
+      const halfY = 1.0 * mesh.scaling.y;  // 2/2
+      const halfZ = 1.0 * mesh.scaling.z;  // 2/2
+
+      connectionPoints = [
+        { id: 'px', position: new Vector3(halfX, 0, 0), normal: new Vector3(1, 0, 0) },
+        { id: 'nx', position: new Vector3(-halfX, 0, 0), normal: new Vector3(-1, 0, 0) },
+        { id: 'py', position: new Vector3(0, halfY, 0), normal: new Vector3(0, 1, 0) },
+        { id: 'ny', position: new Vector3(0, -halfY, 0), normal: new Vector3(0, -1, 0) },
+        { id: 'pz', position: new Vector3(0, 0, halfZ), normal: new Vector3(0, 0, 1) },
+        { id: 'nz', position: new Vector3(0, 0, -halfZ), normal: new Vector3(0, 0, -1) },
       ];
       break;
     }

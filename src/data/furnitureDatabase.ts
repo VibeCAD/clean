@@ -805,6 +805,7 @@ export class FurnitureDatabase {
       'sphere': { width: 2, height: 2, depth: 2 },
       'cylinder': { width: 2, height: 2, depth: 2 },
       'plane': { width: 2, height: 0.1, depth: 2 },
+      'rectangle': { width: 2, height: 2, depth: 2 },
       
       // GLB objects (estimated if not in database)
       'Desk': { width: 1.2, height: 0.75, depth: 0.6 },

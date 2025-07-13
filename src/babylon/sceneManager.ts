@@ -323,6 +323,13 @@ export class SceneManager {
           case 'cone':
             mesh = MeshBuilder.CreateCylinder(sceneObject.id, { diameterTop: 0, diameterBottom: 2, height: 2 }, this.scene)
             break
+          case 'rectangle':
+            mesh = MeshBuilder.CreateBox(sceneObject.id, { 
+              width: 2, 
+              height: 2, 
+              depth: 2 
+            }, this.scene)
+            break
           case 'ground': {
             const groundMesh = this.meshMap.get('ground');
             if (groundMesh) {
