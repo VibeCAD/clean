@@ -738,14 +738,6 @@ function App() {
         gridSize: roomData.gridSize || 20,
         worldScale: SCALE,
         drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
-      },
-      metadata: {
-        floorPolygon: vertices2D.map(v => ({ x: v.x, z: v.y })),
-        gridInfo: {
-          gridSize: roomData.gridSize || 20,
-          worldScale: SCALE,
-          drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
-        }
       }
     }
 
@@ -1028,59 +1020,59 @@ function App() {
 
   // Top Toolbar Component
   const renderTopToolbar = () => (
-    <div className="top-toolbar">
-      <div className="toolbar-menu">
+    <div className="relative z-[1000] bg-transparent">
+      <div className="flex h-12 items-center px-4 gap-0 animate-in slide-in-from-top duration-300">
         
         {/* Transform Tools */}
-        <div className="toolbar-item">
+        <div className="relative inline-block">
           <button 
-            className={`toolbar-button ${transformMode !== 'select' ? 'active' : ''}`}
+            className={`bg-transparent border-none text-white px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-200 rounded flex items-center gap-2 hover:bg-white/10 hover:text-blue-400 shadow-lg ${transformMode !== 'select' ? 'bg-blue-500/30 text-white' : ''}`}
             onClick={() => toggleDropdown('transform')}
           >
-            Transform <span className="dropdown-arrow">▼</span>
+            Transform <span className="text-xs ml-1">▼</span>
           </button>
-          <div className={`dropdown-menu ${activeDropdown === 'transform' ? 'show' : ''}`}>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Transform Mode</div>
-              <div className="dropdown-grid">
+          <div className={`absolute top-full left-0 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-md shadow-lg min-w-[220px] max-w-[380px] max-h-[70vh] overflow-y-auto z-[1001] transition-all duration-200 ${activeDropdown === 'transform' ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'}`}>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Transform Mode</div>
+              <div className="grid grid-cols-3 gap-2 px-4">
                 <button 
-                  className={`dropdown-button ${transformMode === 'select' ? 'active' : ''}`}
+                  className={`flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400 ${transformMode === 'select' ? 'bg-blue-50 border-blue-400 text-blue-700' : ''}`}
                   onClick={() => {
                     setTransformMode('select')
                     setActiveDropdown(null)
                   }}
                 >
-                  <span className="dropdown-icon">🔍</span>
+                  <span className="text-base mb-1">🔍</span>
                   Select
                 </button>
                 <button 
-                  className={`dropdown-button ${transformMode === 'move' ? 'active' : ''}`}
+                  className={`flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400 ${transformMode === 'move' ? 'bg-blue-50 border-blue-400 text-blue-700' : ''}`}
                   onClick={() => {
                     setTransformMode('move')
                     setActiveDropdown(null)
                   }}
                 >
-                  <span className="dropdown-icon">⬆️</span>
+                  <span className="text-base mb-1">⬆️</span>
                   Move
                 </button>
                 <button 
-                  className={`dropdown-button ${transformMode === 'rotate' ? 'active' : ''}`}
+                  className={`flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400 ${transformMode === 'rotate' ? 'bg-blue-50 border-blue-400 text-blue-700' : ''}`}
                   onClick={() => {
                     setTransformMode('rotate')
                     setActiveDropdown(null)
                   }}
                 >
-                  <span className="dropdown-icon">🔄</span>
+                  <span className="text-base mb-1">🔄</span>
                   Rotate
                 </button>
                 <button 
-                  className={`dropdown-button ${transformMode === 'scale' ? 'active' : ''}`}
+                  className={`flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400 ${transformMode === 'scale' ? 'bg-blue-50 border-blue-400 text-blue-700' : ''}`}
                   onClick={() => {
                     setTransformMode('scale')
                     setActiveDropdown(null)
                   }}
                 >
-                  <span className="dropdown-icon">📏</span>
+                  <span className="text-base mb-1">📏</span>
                   Scale
                 </button>
               </div>
@@ -1089,9 +1081,9 @@ function App() {
         </div>
 
         {/* Move To Point Tool */}
-        <div className="toolbar-item">
+        <div className="relative inline-block">
             <button
-                className={`toolbar-button move-to-button ${moveToMode ? 'active' : ''}`}
+                className={`bg-transparent border-none text-white px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-200 rounded flex items-center gap-2 hover:bg-white/10 hover:text-blue-400 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${moveToMode ? 'bg-blue-500/30 text-white' : ''}`}
                 onClick={() => {
                     if(hasSelection()){
                         setMoveToMode(!moveToMode)
@@ -1100,178 +1092,176 @@ function App() {
                 disabled={!hasSelection()}
                 title="Move to Point"
             >
-                <span className="dropdown-icon">📍</span>
+                <span className="text-base">📍</span>
                 Move to...
             </button>
         </div>
 
         {/* Create Menu */}
-        <div className="toolbar-item">
+        <div className="relative inline-block">
           <button 
-            className="toolbar-button"
+            className="bg-transparent border-none text-white px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-200 rounded flex items-center gap-2 hover:bg-white/10 hover:text-blue-400 shadow-lg"
             onClick={() => toggleDropdown('create')}
           >
-            Create <span className="dropdown-arrow">▼</span>
+            Create <span className="text-xs ml-1">▼</span>
           </button>
-          <div className={`dropdown-menu ${activeDropdown === 'create' ? 'show' : ''}`}>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Primitives</div>
-              <div className="dropdown-grid">
-                <button className="dropdown-button" onClick={() => createPrimitive('cube')}>
-                  <span className="dropdown-icon">⬜</span>
+          <div className={`absolute top-full left-0 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-md shadow-lg min-w-[220px] max-w-[380px] max-h-[70vh] overflow-y-auto z-[1001] transition-all duration-200 ${activeDropdown === 'create' ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'}`}>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Primitives</div>
+              <div className="grid grid-cols-3 gap-2 px-4">
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('cube')}>
+                  <span className="text-base mb-1">⬜</span>
                   Cube
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('sphere')}>
-                  <span className="dropdown-icon">⚪</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('sphere')}>
+                  <span className="text-base mb-1">⚪</span>
                   Sphere
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('cylinder')}>
-                  <span className="dropdown-icon">⚫</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('cylinder')}>
+                  <span className="text-base mb-1">⚫</span>
                   Cylinder
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('plane')}>
-                  <span className="dropdown-icon">▬</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('plane')}>
+                  <span className="text-base mb-1">▬</span>
                   Plane
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('torus')}>
-                  <span className="dropdown-icon">🔘</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('torus')}>
+                  <span className="text-base mb-1">🔘</span>
                   Torus
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('cone')}>
-                  <span className="dropdown-icon">🔺</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('cone')}>
+                  <span className="text-base mb-1">🔺</span>
                   Cone
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('rectangle')}>
-                  <span className="dropdown-icon">▭</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('rectangle')}>
+                  <span className="text-base mb-1">▭</span>
                   Rectangle
                 </button>
-                {/* NURBS option removed */}
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Basic Housing</div>
-              <div className="dropdown-grid">
-                <button className="dropdown-button" onClick={() => createPrimitive('house-basic')}>
-                  <span className="dropdown-icon">🏠</span>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Basic Housing</div>
+              <div className="grid grid-cols-3 gap-2 px-4">
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('house-basic')}>
+                  <span className="text-base mb-1">🏠</span>
                   Basic House
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('house-room')}>
-                  <span className="dropdown-icon">🏠</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('house-room')}>
+                  <span className="text-base mb-1">🏠</span>
                   Room
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('house-hallway')}>
-                  <span className="dropdown-icon">🚪</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('house-hallway')}>
+                  <span className="text-base mb-1">🚪</span>
                   Hallway
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('house-roof-flat')}>
-                  <span className="dropdown-icon">🏢</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('house-roof-flat')}>
+                  <span className="text-base mb-1">🏢</span>
                   Flat Roof
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('house-roof-pitched')}>
-                  <span className="dropdown-icon">🏠</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('house-roof-pitched')}>
+                  <span className="text-base mb-1">🏠</span>
                   Pitched Roof
                 </button>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Modular Rooms</div>
-              <div className="dropdown-grid">
-                <button className="dropdown-button" onClick={() => createModularRoom()}>
-                  <span className="dropdown-icon">🏗️</span>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Modular Rooms</div>
+              <div className="grid grid-cols-3 gap-2 px-4">
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createModularRoom()}>
+                  <span className="text-base mb-1">🏗️</span>
                   Modular Room
                 </button>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Foundation & Structure</div>
-              <div className="dropdown-grid">
-                <button className="dropdown-button" onClick={() => createPrimitive('house-foundation')}>
-                  <span className="dropdown-icon">🏗️</span>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Foundation & Structure</div>
+              <div className="grid grid-cols-3 gap-2 px-4">
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('house-foundation')}>
+                  <span className="text-base mb-1">🏗️</span>
                   Foundation
                 </button>
-                <button className="dropdown-button" onClick={() => createPrimitive('house-stairs')}>
-                  <span className="dropdown-icon">🪜</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createPrimitive('house-stairs')}>
+                  <span className="text-base mb-1">🪜</span>
                   Stairs
                 </button>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Walls & Structure</div>
-              <div className="dropdown-grid">
-                <button className="dropdown-button" onClick={() => createHousingComponent('wall')}>
-                  <span className="dropdown-icon">🧱</span>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Walls & Structure</div>
+              <div className="grid grid-cols-3 gap-2 px-4">
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('wall')}>
+                  <span className="text-base mb-1">🧱</span>
                   Wall
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('ceiling')}>
-                  <span className="dropdown-icon">🏗️</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('ceiling')}>
+                  <span className="text-base mb-1">🏗️</span>
                   Ceiling
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('floor')}>
-                  <span className="dropdown-icon">🟫</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('floor')}>
+                  <span className="text-base mb-1">🟫</span>
                   Floor
                 </button>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Doors</div>
-              <div className="dropdown-grid">
-                <button className="dropdown-button" onClick={() => createHousingComponent('door', 'single')}>
-                  <span className="dropdown-icon">🚪</span>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Doors</div>
+              <div className="grid grid-cols-2 gap-2 px-4">
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('door', 'single')}>
+                  <span className="text-base mb-1">🚪</span>
                   Single Door
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('door', 'double')}>
-                  <span className="dropdown-icon">🚪</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('door', 'double')}>
+                  <span className="text-base mb-1">🚪</span>
                   Double Door
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('door', 'sliding')}>
-                  <span className="dropdown-icon">🚪</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('door', 'sliding')}>
+                  <span className="text-base mb-1">🚪</span>
                   Sliding Door
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('door', 'french')}>
-                  <span className="dropdown-icon">🚪</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('door', 'french')}>
+                  <span className="text-base mb-1">🚪</span>
                   French Door
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('door', 'garage')}>
-                  <span className="dropdown-icon">🚪</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('door', 'garage')}>
+                  <span className="text-base mb-1">🚪</span>
                   Garage Door
                 </button>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Windows</div>
-              <div className="dropdown-grid">
-                <button className="dropdown-button" onClick={() => createHousingComponent('window', 'single')}>
-                  <span className="dropdown-icon">🪟</span>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Windows</div>
+              <div className="grid grid-cols-2 gap-2 px-4">
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('window', 'single')}>
+                  <span className="text-base mb-1">🪟</span>
                   Single Window
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('window', 'double')}>
-                  <span className="dropdown-icon">🪟</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('window', 'double')}>
+                  <span className="text-base mb-1">🪟</span>
                   Double Window
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('window', 'bay')}>
-                  <span className="dropdown-icon">🪟</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('window', 'bay')}>
+                  <span className="text-base mb-1">🪟</span>
                   Bay Window
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('window', 'casement')}>
-                  <span className="dropdown-icon">🪟</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('window', 'casement')}>
+                  <span className="text-base mb-1">🪟</span>
                   Casement Window
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('window', 'sliding')}>
-                  <span className="dropdown-icon">🪟</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('window', 'sliding')}>
+                  <span className="text-base mb-1">🪟</span>
                   Sliding Window
                 </button>
-                <button className="dropdown-button" onClick={() => createHousingComponent('window', 'skylight')}>
-                  <span className="dropdown-icon">🪟</span>
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => createHousingComponent('window', 'skylight')}>
+                  <span className="text-base mb-1">🪟</span>
                   Skylight
                 </button>
               </div>
             </div>
-            {/* Custom */}
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Custom</div>
-              <div className="dropdown-grid">
-                <button className="dropdown-button" onClick={() => { setShowCustomRoomModal(true); setActiveDropdown(null) }}>
-                  <span className="dropdown-icon">📐</span>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Custom</div>
+              <div className="grid grid-cols-3 gap-2 px-4">
+                <button className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer transition-all duration-200 text-xs font-medium text-gray-700 text-center min-h-[60px] hover:bg-gray-200 hover:border-blue-400 hover:text-blue-400" onClick={() => { setShowCustomRoomModal(true); setActiveDropdown(null) }}>
+                  <span className="text-base mb-1">📐</span>
                   Custom Room
                 </button>
               </div>
@@ -1280,19 +1270,19 @@ function App() {
         </div>
 
         {/* Material Menu */}
-        <div className="toolbar-item">
+        <div className="relative inline-block">
           <button 
-            className={`toolbar-button ${hasSelectionFlag ? 'active' : ''}`}
+            className={`bg-transparent border-none text-white px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-200 rounded flex items-center gap-2 hover:bg-white/10 hover:text-blue-400 shadow-lg ${hasSelectionFlag ? 'bg-blue-500/30 text-white' : ''}`}
             onClick={() => toggleDropdown('material')}
           >
-            Material <span className="dropdown-arrow">▼</span>
+            Material <span className="text-xs ml-1">▼</span>
           </button>
-          <div className={`dropdown-menu ${activeDropdown === 'material' ? 'show' : ''}`}>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">RGB Color Picker</div>
-              <div className="dropdown-controls">
-                <div className="control-row">
-                  <span className="control-label">Color:</span>
+          <div className={`absolute top-full left-0 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-md shadow-lg min-w-[220px] max-w-[380px] max-h-[70vh] overflow-y-auto z-[1001] transition-all duration-200 ${activeDropdown === 'material' ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'}`}>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">RGB Color Picker</div>
+              <div className="px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-gray-600 font-medium min-w-[50px]">Color:</span>
                   <input
                     type="color"
                     value={currentColor}
@@ -1302,11 +1292,11 @@ function App() {
                         changeSelectedObjectColor(e.target.value)
                       }
                     }}
-                    className="color-picker-large"
+                    className="w-15 h-10 border border-gray-300 rounded cursor-pointer p-0 outline-none"
                   />
                 </div>
-                <div className="control-row">
-                  <span className="control-label">Hex:</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-gray-600 font-medium min-w-[50px]">Hex:</span>
                   <input
                     type="text"
                     value={currentColor}
@@ -1319,13 +1309,13 @@ function App() {
                         }
                       }
                     }}
-                    className="hex-input"
+                    className="w-20 px-2 py-1 border border-gray-300 rounded text-xs font-mono uppercase"
                     placeholder="#FFFFFF"
                   />
                 </div>
-                <div className="control-row">
-                  <span className="control-label">RGB:</span>
-                  <div className="rgb-inputs">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-medium min-w-[50px]">RGB:</span>
+                  <div className="flex gap-1">
                     <input
                       type="number"
                       min="0"
@@ -1341,7 +1331,7 @@ function App() {
                           changeSelectedObjectColor(newColor)
                         }
                       }}
-                      className="rgb-input"
+                      className="w-10 px-2 py-1 border border-gray-300 rounded text-xs text-center"
                       placeholder="R"
                     />
                     <input
@@ -1359,7 +1349,7 @@ function App() {
                           changeSelectedObjectColor(newColor)
                         }
                       }}
-                      className="rgb-input"
+                      className="w-10 px-2 py-1 border border-gray-300 rounded text-xs text-center"
                       placeholder="G"
                     />
                     <input
@@ -1377,45 +1367,43 @@ function App() {
                           changeSelectedObjectColor(newColor)
                         }
                       }}
-                      className="rgb-input"
+                      className="w-10 px-2 py-1 border border-gray-300 rounded text-xs text-center"
                       placeholder="B"
                     />
                   </div>
                 </div>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Quick Colors</div>
-              <div className="dropdown-controls">
-                <div className="control-row">
-                  <div className="material-chips">
-                    {materialPresets.map((preset) => (
-                      <button
-                        key={preset.name}
-                        className={`material-chip ${currentColor === preset.color ? 'active' : ''}`}
-                        style={{ backgroundColor: preset.color }}
-                        onClick={() => applyPresetColor(preset.color)}
-                        title={preset.name}
-                      />
-                    ))}
-                  </div>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Quick Colors</div>
+              <div className="px-4 py-3">
+                <div className="flex flex-wrap gap-1">
+                  {materialPresets.map((preset) => (
+                    <button
+                      key={preset.name}
+                      className={`w-5 h-5 rounded-full border border-gray-300 cursor-pointer transition-transform duration-200 hover:scale-110 ${currentColor === preset.color ? 'scale-110 border-2 border-blue-400' : ''}`}
+                      style={{ backgroundColor: preset.color }}
+                      onClick={() => applyPresetColor(preset.color)}
+                      title={preset.name}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
             {hasSelectionFlag && (
-              <div className="dropdown-section">
-                <div className="dropdown-section-title">
+              <div className="py-3 border-b border-gray-200 last:border-b-0">
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">
                   Apply to: {selectedObject ? selectedObject.type.toUpperCase() : `${selectedObjectIds.length} OBJECTS`}
                 </div>
-                <div className="dropdown-actions">
+                <div className="flex gap-2 px-4">
                   <button 
-                    className="dropdown-action"
+                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-gray-400"
                     onClick={applyCurrentColorToSelection}
                   >
                     Apply Current Color
                   </button>
                   <button 
-                    className="dropdown-action"
+                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-gray-400"
                     onClick={() => {
                       // Random color generator
                       const randomColor = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
@@ -1432,49 +1420,52 @@ function App() {
         </div>
 
         {/* Tools Menu */}
-        <div className="toolbar-item">
+        <div className="relative inline-block">
           <button 
-            className="toolbar-button"
+            className="bg-transparent border-none text-white px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-200 rounded flex items-center gap-2 hover:bg-white/10 hover:text-blue-400 shadow-lg"
             onClick={() => toggleDropdown('tools')}
           >
-            Tools <span className="dropdown-arrow">▼</span>
+            Tools <span className="text-xs ml-1">▼</span>
           </button>
-          <div className={`dropdown-menu ${activeDropdown === 'tools' ? 'show' : ''}`}>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Snap Settings</div>
-              <div className="dropdown-controls">
-                <div className="control-row">
-                  <label className="control-checkbox">
+          <div className={`absolute top-full left-0 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-md shadow-lg min-w-[220px] max-w-[380px] max-h-[70vh] overflow-y-auto z-[1001] transition-all duration-200 ${activeDropdown === 'tools' ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'}`}>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Snap Settings</div>
+              <div className="px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={snapToGrid}
                       onChange={(e) => setSnapToGrid(e.target.checked)}
+                      className="cursor-pointer"
                     />
                     <span>Snap to Grid</span>
                   </label>
                 </div>
-                <div className="control-row">
-                  <label className="control-checkbox">
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={snapToObjects}
                       onChange={(e) => setSnapToObjects(e.target.checked)}
+                      className="cursor-pointer"
                     />
                     <span>Snap to Objects</span>
                   </label>
                 </div>
-                <div className="control-row">
-                  <label className="control-checkbox">
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={showConnectionPoints}
                       onChange={(e) => setShowConnectionPoints(e.target.checked)}
+                      className="cursor-pointer"
                     />
                     <span>Show Connection Points</span>
                   </label>
                 </div>
-                <div className="control-row">
-                  <span className="control-label">Grid Size:</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-medium min-w-[70px]">Grid Size:</span>
                   <input
                     type="number"
                     value={gridSize}
@@ -1482,16 +1473,16 @@ function App() {
                     min="0.1"
                     max="5"
                     step="0.1"
-                    className="control-input"
+                    className="w-15 px-2 py-1 border border-gray-300 rounded text-xs text-center"
                   />
                 </div>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Physics</div>
-              <div className="dropdown-controls">
-                <div className="control-row">
-                  <label className="control-checkbox">
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Physics</div>
+              <div className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={collisionDetectionEnabled}
@@ -1501,18 +1492,19 @@ function App() {
                           sceneAPI.setCollisionDetectionEnabled(e.target.checked)
                         }
                       }}
+                      className="cursor-pointer"
                     />
                     <span>Collision Detection</span>
                   </label>
                 </div>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Movement Controls</div>
-              <div className="dropdown-controls">
-                <div className="control-row">
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Movement Controls</div>
+              <div className="px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
                   <label 
-                    className="control-checkbox"
+                    className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer"
                     title="Enable keyboard-based camera movement controls similar to FPS games"
                   >
                     <input
@@ -1525,12 +1517,13 @@ function App() {
                           sceneAPI.getSceneManager()?.setMovementEnabled(enabled)
                         }
                       }}
+                      className="cursor-pointer"
                     />
                     <span>Enable WASD Movement</span>
                   </label>
                 </div>
-                <div className="control-row">
-                  <span className="control-label">Movement Speed:</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-gray-600 font-medium min-w-[90px]">Movement Speed:</span>
                   <input
                     type="range"
                     value={movementSpeed}
@@ -1544,25 +1537,23 @@ function App() {
                     min="0.05"
                     max="1.0"
                     step="0.05"
-                    className="control-range"
+                    className="flex-1"
                     title={`Movement speed: ${movementSpeed.toFixed(2)} units/frame. Hold Shift to sprint at 2x speed.`}
                   />
-                  <span className="control-value">{movementSpeed.toFixed(2)}</span>
+                  <span className="text-xs text-gray-600 font-medium min-w-[35px]">{movementSpeed.toFixed(2)}</span>
                 </div>
-                <div className="control-row">
-                  <small className="control-help">
-                    📖 <strong>Controls:</strong> W/A/S/D to move • Q/E for up/down • Shift to sprint<br/>
-                    💡 <strong>Tip:</strong> Works like FPS games - movement is relative to camera direction<br/>
-                    ⚠️  <strong>Note:</strong> Automatically disabled when typing or using menus
-                  </small>
+                <div className="text-xs text-gray-500 space-y-1">
+                  <div>📖 <strong>Controls:</strong> W/A/S/D to move • Q/E for up/down • Shift to sprint</div>
+                  <div>💡 <strong>Tip:</strong> Works like FPS games - movement is relative to camera direction</div>
+                  <div>⚠️  <strong>Note:</strong> Automatically disabled when typing or using menus</div>
                 </div>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Precision Tools</div>
-              <div className="dropdown-actions">
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Precision Tools</div>
+              <div className="flex gap-2 px-4">
                 <button 
-                  className="dropdown-action"
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
                   onClick={() => {
                     // Focus on selected object
                     if (selectedObject) {
@@ -1581,7 +1572,7 @@ function App() {
                   Focus Selected
                 </button>
                 <button 
-                  className="dropdown-action"
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
                   onClick={() => {
                     // Align selected objects to grid
                     const objectsToAlign = selectedObjectId ? [selectedObjectId] : selectedObjectIds
@@ -1605,54 +1596,54 @@ function App() {
         </div>
 
         {/* View Menu */}
-        <div className="toolbar-item">
+        <div className="relative inline-block">
           <button 
-            className="toolbar-button"
+            className="bg-transparent border-none text-white px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-200 rounded flex items-center gap-2 hover:bg-white/10 hover:text-blue-400 shadow-lg"
             onClick={() => toggleDropdown('view')}
           >
-            View <span className="dropdown-arrow">▼</span>
+            View <span className="text-xs ml-1">▼</span>
           </button>
-          <div className={`dropdown-menu ${activeDropdown === 'view' ? 'show' : ''}`}>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Camera</div>
-              <div className="camera-grid">
-                <button className="camera-button" onClick={() => setCameraView('front')}>Front</button>
-                <button className="camera-button" onClick={() => setCameraView('back')}>Back</button>
-                <button className="camera-button" onClick={() => setCameraView('left')}>Left</button>
-                <button className="camera-button" onClick={() => setCameraView('right')}>Right</button>
-                <button className="camera-button" onClick={() => setCameraView('top')}>Top</button>
-                <button className="camera-button" onClick={() => setCameraView('bottom')}>Bottom</button>
-                <button className="camera-button" onClick={() => setCameraView('home')}>Home</button>
+          <div className={`absolute top-full left-0 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-md shadow-lg min-w-[220px] max-w-[380px] max-h-[70vh] overflow-y-auto z-[1001] transition-all duration-200 ${activeDropdown === 'view' ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'}`}>
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Camera</div>
+              <div className="grid grid-cols-4 gap-2 px-4">
+                <button className="px-1 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-blue-400" onClick={() => setCameraView('front')}>Front</button>
+                <button className="px-1 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-blue-400" onClick={() => setCameraView('back')}>Back</button>
+                <button className="px-1 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-blue-400" onClick={() => setCameraView('left')}>Left</button>
+                <button className="px-1 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-blue-400" onClick={() => setCameraView('right')}>Right</button>
+                <button className="px-1 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-blue-400" onClick={() => setCameraView('top')}>Top</button>
+                <button className="px-1 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-blue-400" onClick={() => setCameraView('bottom')}>Bottom</button>
+                <button className="px-1 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-blue-400" onClick={() => setCameraView('home')}>Home</button>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Display</div>
-              <div className="dropdown-actions">
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Display</div>
+              <div className="flex flex-col gap-2 px-4">
                 <button 
-                  className={`dropdown-action ${wireframeMode ? 'active' : ''}`}
+                  className={`px-3 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-gray-400 ${wireframeMode ? 'bg-blue-50 border-blue-400 text-blue-700' : ''}`}
                   onClick={toggleWireframe}
                 >
                   {wireframeMode ? '✓' : ''} Wireframe
                 </button>
                 <button 
-                  className={`dropdown-action ${showGrid ? 'active' : ''}`}
+                  className={`px-3 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-gray-400 ${showGrid ? 'bg-blue-50 border-blue-400 text-blue-700' : ''}`}
                   onClick={() => setShowGrid(!showGrid)}
                 >
                   {showGrid ? '✓' : ''} Grid
                 </button>
                 <button 
-                  className={`dropdown-action ${snapToGrid ? 'active' : ''}`}
+                  className={`px-3 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-gray-400 ${snapToGrid ? 'bg-blue-50 border-blue-400 text-blue-700' : ''}`}
                   onClick={() => setSnapToGrid(!snapToGrid)}
                 >
                   {snapToGrid ? '✓' : ''} Snap to Grid
                 </button>
               </div>
             </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Visibility</div>
-              <div className="dropdown-actions">
+            <div className="py-3 border-b border-gray-200 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide px-4 pb-2 mb-2">Visibility</div>
+              <div className="flex flex-col gap-2 px-4">
                 <button 
-                  className="dropdown-action"
+                  className="px-3 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-gray-400"
                   onClick={() => {
                     // Show all objects
                     sceneObjects.forEach(obj => {
@@ -1667,7 +1658,7 @@ function App() {
                   Show All
                 </button>
                 <button 
-                  className="dropdown-action"
+                  className="px-3 py-2 bg-gray-50 border border-gray-300 rounded cursor-pointer text-xs font-medium text-gray-700 text-center transition-all duration-200 hover:bg-gray-200 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
                   onClick={() => {
                     // Hide unselected objects
                     const visibleIds = selectedObjectId ? [selectedObjectId] : selectedObjectIds

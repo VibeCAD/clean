@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Square, Loader2, AlertCircle } from 'lucide-react';
+import { Mic, MicOff, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RecordingState } from '../../services/audioRecordingService';
 import type { TranscriptionProgress } from '../../services/speechToTextService';
@@ -116,7 +116,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
     
     switch (state) {
       case 'recording':
-        return <Square size={iconSize} />;
+        return <Mic size={iconSize} className="text-red-500" />;
       case 'processing':
         return <Loader2 size={iconSize} className="animate-spin" />;
       case 'error':
@@ -223,7 +223,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
       if (variant === 'minimal') {
         stateClasses = 'bg-red-500/20 border-red-500 text-red-500 animate-pulse';
       } else {
-        stateClasses = 'bg-red-500 border-red-500 text-white animate-pulse shadow-lg shadow-red-500/25';
+        stateClasses = 'bg-white/90 border-red-500 text-red-500 animate-pulse shadow-lg shadow-red-500/25';
       }
     } else if (state === 'processing') {
       if (variant === 'minimal') {

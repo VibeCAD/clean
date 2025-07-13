@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { ChatInput } from '@/components/ui/chat/chat-input';
 import { ChatBubble, ChatBubbleAvatar, ChatBubbleMessage } from '@/components/ui/chat/chat-bubble';
 import { ChatMessageList } from '@/components/ui/chat/chat-message-list';
-import { VoiceInputButton } from '@/components/ui/VoiceInputButton';
 import { BorderBeam } from '@/components/magicui/border-beam';
 import { Marquee } from '@/components/magicui/marquee';
 import { cn } from '@/lib/utils';
@@ -69,7 +68,7 @@ export default function FloatingChatModal({
     }
   ]);
   
-  // Voice input state
+  // Microphone permission and state
   const [internalRecordingState, setInternalRecordingState] = useState<RecordingState>({
     isRecording: false,
     isPaused: false,
@@ -80,6 +79,11 @@ export default function FloatingChatModal({
     error: null,
     isProcessing: false
   });
+
+  // Simple local recording state for immediate UI feedback
+  const [isRecording, setIsRecording] = useState(false);
+  
+  
 
   
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -101,12 +105,8 @@ export default function FloatingChatModal({
         
         // Set up state change listener with debouncing to prevent render loops
         const unsubscribe = audioServiceRef.current.onStateChange((state: RecordingState) => {
-          // Debounce state changes to prevent rapid updates
-          clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => {
-            console.log('🔄 Recording state changed:', state);
-            setInternalRecordingState(state);
-          }, 50); // 50ms debounce
+          console.log('🔄 Recording state changed:', state);
+          setInternalRecordingState(state);
         });
 
         // Initialize speech service if we have an API key
@@ -126,8 +126,6 @@ export default function FloatingChatModal({
         }
 
         return () => {
-          clearTimeout(timeoutId);
-          clearTimeout(progressTimeoutId);
           unsubscribe();
           if (audioServiceRef.current) {
             audioServiceRef.current.cleanup();
@@ -164,6 +162,16 @@ export default function FloatingChatModal({
 
   // Use external state if provided, otherwise use internal state
   const currentRecordingState = externalRecordingState || internalRecordingState;
+  
+  // Debug logging for recording state
+  useEffect(() => {
+    console.log('🔍 Current recording state in UI:', {
+      isRecording: currentRecordingState.isRecording,
+      isProcessing: currentRecordingState.isProcessing,
+      hasPermission: currentRecordingState.hasPermission,
+      error: currentRecordingState.error
+    });
+  }, [currentRecordingState.isRecording, currentRecordingState.isProcessing, currentRecordingState.hasPermission, currentRecordingState.error]);
 
   // Dock animation values - same as dock.tsx
   const mouseX = useMotionValue(Infinity);
@@ -203,26 +211,20 @@ export default function FloatingChatModal({
 
   // Voice input handlers
   const handleVoiceToggle = async () => {
-    console.log('🎤 Voice toggle requested');
+    console.log('🎤 Voice toggle clicked, current recording state:', isRecording);
     
-    if (!audioServiceRef.current) {
-      console.error('❌ Audio service not available');
-      return;
-    }
-
-    // Safety check: don't allow auto-recording, only on explicit user action
-    if (!sceneInitialized) {
-      console.warn('⚠️ Scene not initialized, cannot start recording');
+    if (!voiceInputEnabled || !audioServiceRef.current) {
+      console.warn('⚠️ Voice input not available');
       return;
     }
 
     try {
-      // Get real-time state directly from the service to avoid stale state
-      const realTimeState = audioServiceRef.current.getState();
-      console.log('🔍 Real-time recording state:', realTimeState.isRecording);
-      
-      if (realTimeState.isRecording) {
+      const currentState = audioServiceRef.current.getState();
+      console.log('🔊 Current audio service state:', currentState);
+
+      if (currentState.isRecording) {
         console.log('🛑 Stopping recording...');
+        setIsRecording(false); // Update UI immediately
         const result = await audioServiceRef.current.stopRecording();
         
         if (result && speechServiceRef.current) {
@@ -289,36 +291,42 @@ export default function FloatingChatModal({
         }
       } else {
         console.log('🎙️ Starting recording...');
-        // First request permission if not already granted
-        if (!currentRecordingState.hasPermission) {
-          console.log('🔐 Requesting microphone permission...');
-          const permissionGranted = await audioServiceRef.current.requestPermission();
-          if (!permissionGranted) {
+        setIsRecording(true); // Update UI immediately
+        
+        // Request permission if needed
+        if (currentState.permissionStatus === 'unknown' || currentState.permissionStatus === 'prompt') {
+          const hasPermission = await audioServiceRef.current.requestPermission();
+          if (!hasPermission) {
             console.warn('⚠️ Microphone permission denied');
+            setIsRecording(false);
+            setInternalRecordingState(prev => ({ 
+              ...prev, 
+              permissionStatus: 'denied',
+              error: 'Microphone permission denied',
+              isProcessing: false 
+            }));
             return;
           }
         }
+        
+        if (currentState.permissionStatus === 'denied') {
+          console.warn('⚠️ Microphone permission previously denied');
+          setIsRecording(false);
+          return;
+        }
+
         await audioServiceRef.current.startRecording();
       }
     } catch (error) {
       console.error('❌ Voice input error:', error);
+      setIsRecording(false); // Reset on error
       setInternalRecordingState(prev => ({ 
         ...prev, 
         error: error instanceof Error ? error.message : 'Voice input failed',
         isProcessing: false,
-        isRecording: false
+        isRecording: false 
       }));
     }
-    
-    // Call external handlers if provided
-    // Note: Use inverse logic since we just toggled the state
-    const finalState = audioServiceRef.current.getState();
-    if (finalState.isRecording) {
-      onStartVoiceRecording?.(); // Just started recording
-    } else {
-      onStopVoiceRecording?.(); // Just stopped recording
-    }
-    onToggleVoiceRecording?.();
   };
 
   // Handle AI response (simulate for now)
@@ -408,6 +416,20 @@ export default function FloatingChatModal({
 
   return (
     <>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+        .recording-active {
+          background-color: rgba(239, 68, 68, 0.2) !important;
+          border-color: rgba(239, 68, 68, 0.5) !important;
+        }
+      `}</style>
       {/* Floating Chat Dock */}
       <div className="fixed bottom-4 right-24">
         {/* Main Dock Container - with mouse tracking like dock.tsx */}
@@ -422,24 +444,24 @@ export default function FloatingChatModal({
             <MessageCircle className="w-6 h-6 text-white" />
           </ChatDockIcon>
 
-          {/* Voice Input Button */}
-          {voiceInputEnabled && (
-            <ChatDockIcon onClick={handleVoiceToggle} disabled={!sceneInitialized} mouseX={mouseX}>
-              <div className="relative">
-                <VoiceInputButton
-                  disabled={!sceneInitialized}
-                  recordingState={currentRecordingState}
-                  onToggle={() => {}} // Handled by ChatDockIcon onClick
-                  onStartRecording={() => {}} // Handled by ChatDockIcon onClick
-                  onStopRecording={() => {}} // Handled by ChatDockIcon onClick
-                  size="small"
-                  variant="minimal"
-                  showAudioLevel={false}
-                  className="!w-6 !h-6 !bg-transparent !border-transparent hover:!border-transparent !shadow-none pointer-events-none"
-                />
-              </div>
-            </ChatDockIcon>
-          )}
+                        {/* Voice Input Button */}
+              {voiceInputEnabled && (
+                <ChatDockIcon 
+                  onClick={handleVoiceToggle} 
+                  disabled={!sceneInitialized} 
+                  mouseX={mouseX}
+                >
+                  {isRecording ? (
+                    <MicOff className="w-6 h-6 text-red-400" />
+                  ) : currentRecordingState.permissionStatus === 'denied' ? (
+                    <MicOff className="w-6 h-6 text-gray-400" />
+                  ) : (
+                    <Mic className="w-6 h-6 text-white" />
+                  )}
+                </ChatDockIcon>
+              )}
+          
+
 
           {/* Close/Settings Icon */}
           <ChatDockIcon onClick={() => setIsExpanded(false)} mouseX={mouseX}>
