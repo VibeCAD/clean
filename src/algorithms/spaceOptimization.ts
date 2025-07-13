@@ -144,9 +144,9 @@ export class SpaceOptimizer {
 
     this.defaultConfigs.set('Sofa', {
       objectType: 'Sofa',
-      minClearance: 0.4,
-      accessClearance: 1.0,   // Space in front for coffee table + walking
-      wallOffset: 0.1,        // Can be against wall
+      minClearance: 0.3,      // 30cm around sofa (reduced from 40cm)
+      accessClearance: 0.8,   // 80cm in front for coffee table + walking (reduced from 100cm)
+      wallOffset: 0.05,       // 5cm from wall (reduced from 10cm)
       cornerUsage: true,      // Good corner placement
       grouping: false,
       gridResolution: 0.3
@@ -169,6 +169,38 @@ export class SpaceOptimizer {
       wallOffset: 0.05,       // Usually against wall
       cornerUsage: true,      // Good for corners
       grouping: true,         // Can line up multiple bookcases
+      gridResolution: 0.2
+    });
+
+    // Add configurations for other common furniture
+    this.defaultConfigs.set('Adjustable Desk', {
+      objectType: 'Adjustable Desk',
+      minClearance: 0.2,
+      accessClearance: 0.8,
+      wallOffset: 0.05,
+      cornerUsage: true,
+      grouping: true,
+      gridResolution: 0.2
+      
+    });
+
+    this.defaultConfigs.set('Standing Desk', {
+      objectType: 'Standing Desk',
+      minClearance: 0.2,
+      accessClearance: 0.8,
+      wallOffset: 0.05,
+      cornerUsage: true,
+      grouping: true,
+      gridResolution: 0.2
+    });
+
+    this.defaultConfigs.set('Simple table', {
+      objectType: 'Simple table',
+      minClearance: 0.25,
+      accessClearance: 0.6,
+      wallOffset: 0.1,
+      cornerUsage: false,
+      grouping: false,
       gridResolution: 0.2
     });
   }
@@ -215,6 +247,80 @@ export class SpaceOptimizer {
     console.log(`✅ Optimization complete: ${result.maxObjects} objects, ${(result.efficiency * 100).toFixed(1)}% efficiency`);
     
     return result;
+  }
+
+  /**
+   * Coordinated placement of multiple furniture types (e.g., desks and chairs)
+   */
+  public optimizeCoordinatedSpace(
+    roomMesh: Mesh,
+    furnitureGroups: { type: string; quantity: number; priority: 'primary' | 'secondary' }[],
+    strategy: OptimizationStrategy = { name: 'maximize', priority: 'maximize', description: 'Maximize capacity' },
+    existingObjects?: SceneObject[]
+  ): {
+    coordinatedLayouts: { [type: string]: PlacementLayout[] };
+    totalObjects: number;
+    efficiency: number;
+    warnings: string[];
+  } {
+    console.log(`🔍 Starting coordinated space optimization for ${furnitureGroups.length} furniture types`);
+
+    // Analyze room geometry
+    const roomBounds = this.analyzeRoomGeometry(roomMesh);
+    
+    // Get configurations for all furniture types
+    const configs = new Map<string, SpaceOptimizationConfig>();
+    for (const group of furnitureGroups) {
+      configs.set(group.type, this.getOptimizationConfig(group.type));
+    }
+
+    // Find primary furniture (desks, tables, etc.)
+    const primaryFurniture = furnitureGroups.find(g => g.priority === 'primary');
+    const secondaryFurniture = furnitureGroups.filter(g => g.priority === 'secondary');
+
+    if (!primaryFurniture) {
+      throw new Error('At least one primary furniture type must be specified');
+    }
+
+    // First, place primary furniture
+    const primaryConfig = configs.get(primaryFurniture.type)!;
+    const primaryGrid = this.generatePlacementGrid(roomBounds, primaryConfig, existingObjects);
+    const primaryValidPositions = this.filterValidPositions(primaryGrid, roomBounds, primaryConfig);
+    const primaryLayouts = this.generateOptimalLayouts(primaryValidPositions, roomBounds, primaryConfig, strategy);
+
+    // Limit primary furniture to requested quantity
+    const limitedPrimaryLayouts = primaryLayouts.slice(0, primaryFurniture.quantity);
+
+    const coordinatedLayouts: { [type: string]: PlacementLayout[] } = {
+      [primaryFurniture.type]: limitedPrimaryLayouts
+    };
+
+    // Now place secondary furniture in coordination with primary
+    for (const secondaryGroup of secondaryFurniture) {
+      const secondaryLayouts = this.placeSecondaryFurniture(
+        secondaryGroup,
+        limitedPrimaryLayouts,
+        roomBounds,
+        configs.get(secondaryGroup.type)!,
+        existingObjects
+      );
+      coordinatedLayouts[secondaryGroup.type] = secondaryLayouts;
+    }
+
+    // Calculate metrics
+    const totalObjects = Object.values(coordinatedLayouts).reduce((sum, layouts) => sum + layouts.length, 0);
+    const allLayouts = Object.values(coordinatedLayouts).flat();
+    const efficiency = this.calculateSpaceEfficiency(allLayouts, roomBounds);
+    const warnings = this.generateCoordinatedWarnings(coordinatedLayouts, roomBounds, existingObjects);
+
+    console.log(`✅ Coordinated optimization complete: ${totalObjects} objects total`);
+
+    return {
+      coordinatedLayouts,
+      totalObjects,
+      efficiency,
+      warnings
+    };
   }
 
   /**
@@ -692,18 +798,92 @@ export class SpaceOptimizer {
     roomBounds: RoomBounds,
     config: SpaceOptimizationConfig
   ): Vector3 {
-    // For objects with directional access (like desks), orient toward room center
+    // For office furniture, prefer consistent orientations
+    if (config.objectType === 'Desk' || config.objectType === 'Adjustable Desk' || config.objectType === 'Standing Desk') {
+      // For desks, prefer alignment with room walls for consistent office layout
+      const nearestWall = this.findNearestWall(position.worldPos, roomBounds.wallSegments);
+      
+      if (nearestWall) {
+        // Calculate wall direction vector
+        const wallDirection = nearestWall.end.subtract(nearestWall.start).normalize();
+        
+        // For wall-adjacent desks, align parallel to wall
+        if (position.distanceToWall < 0.5) {
+          const angle = Math.atan2(wallDirection.x, wallDirection.z);
+          return new Vector3(0, angle, 0);
+        }
+        
+        // For desks not against walls, prefer north-south or east-west alignment
+        const wallAngle = Math.atan2(wallDirection.x, wallDirection.z);
+        const normalizedAngle = ((wallAngle + Math.PI) % (Math.PI / 2)) - Math.PI / 4;
+        
+        // Snap to nearest cardinal direction
+        if (Math.abs(normalizedAngle) < Math.PI / 8) {
+          return new Vector3(0, 0, 0); // North
+        } else {
+          return new Vector3(0, Math.PI / 2, 0); // East
+        }
+      }
+      
+      // Default desk orientation (facing north)
+      return new Vector3(0, 0, 0);
+    }
+
+    // For chairs, orient toward nearest desk if available
+    if (config.objectType === 'Chair') {
+      // This will be enhanced when we implement coordinated placement
+      return new Vector3(0, 0, 0);
+    }
+
+    // For tables and meeting furniture, prefer consistent orientation
+    if (config.objectType === 'Table' || config.objectType === 'Simple table') {
+      // Tables should be oriented consistently, preferably aligned with room geometry
+      const roomWidth = roomBounds.floorPolygon.reduce((max, p) => Math.max(max, p.x), -Infinity) - 
+                       roomBounds.floorPolygon.reduce((min, p) => Math.min(min, p.x), Infinity);
+      const roomDepth = roomBounds.floorPolygon.reduce((max, p) => Math.max(max, p.z), -Infinity) - 
+                       roomBounds.floorPolygon.reduce((min, p) => Math.min(min, p.z), Infinity);
+      
+      // Orient tables along the longer room dimension
+      if (roomWidth > roomDepth) {
+        return new Vector3(0, Math.PI / 2, 0); // Along width
+      } else {
+        return new Vector3(0, 0, 0); // Along depth
+      }
+    }
+
+    // For other directional objects, use a more conservative center-facing approach
     if (config.accessClearance > config.minClearance) {
       const toCenter = roomBounds.center.subtract(position.worldPos);
       toCenter.y = 0;
       toCenter.normalize();
       
       const angle = Math.atan2(toCenter.x, toCenter.z);
-      return new Vector3(0, angle, 0);
+      
+      // Snap to nearest 45-degree increment for more consistent orientations
+      const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+      return new Vector3(0, snapAngle, 0);
     }
 
     // Default rotation
     return Vector3.Zero();
+  }
+
+  /**
+   * Find the nearest wall segment to a position
+   */
+  private findNearestWall(position: Vector3, wallSegments: WallSegment[]): WallSegment | null {
+    let nearestWall: WallSegment | null = null;
+    let minDistance = Infinity;
+
+    for (const wall of wallSegments) {
+      const distance = this.distancePointToLineSegment(position, wall.start, wall.end);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestWall = wall;
+      }
+    }
+
+    return nearestWall;
   }
 
   /**
@@ -751,16 +931,38 @@ export class SpaceOptimizer {
     occupiedPositions: Set<string>,
     allPositions: GridCell[]
   ): void {
-    const clearanceRadius = Math.max(config.minClearance, config.accessClearance);
+    // Use a more nuanced approach for marking occupied areas
+    // Instead of using maximum clearance in all directions, use directional clearance
+    
     const gridResolution = config.gridResolution;
-    const clearanceCells = Math.ceil(clearanceRadius / gridResolution);
-
-    // Mark cells within clearance radius as occupied
+    const baseRadius = config.minClearance; // Base clearance in all directions
+    const accessRadius = config.accessClearance; // Extended clearance in access direction
+    
+    // For most furniture, the access clearance is directional (front-facing)
+    // We'll create an elliptical exclusion zone instead of a circular one
+    
     for (const cell of allPositions) {
-      const distance = Vector3.Distance(cell.worldPos, position.worldPos);
-      if (distance <= clearanceRadius) {
+      const dx = cell.worldPos.x - position.worldPos.x;
+      const dz = cell.worldPos.z - position.worldPos.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      
+      // Check if within base clearance radius (circular)
+      if (distance <= baseRadius) {
         const key = `${cell.x},${cell.z}`;
         occupiedPositions.add(key);
+        continue;
+      }
+      
+      // For directional objects, check extended clearance in access direction
+      if (config.accessClearance > config.minClearance) {
+        // Assume access direction is initially forward (positive Z)
+        // This will be refined based on actual object rotation in the future
+        const isInAccessZone = Math.abs(dx) <= baseRadius && dz >= 0 && dz <= accessRadius;
+        
+        if (isInAccessZone) {
+          const key = `${cell.x},${cell.z}`;
+          occupiedPositions.add(key);
+        }
       }
     }
   }
@@ -865,6 +1067,193 @@ export class SpaceOptimizer {
     }
 
     return alternatives;
+  }
+
+  /**
+   * Place secondary furniture in coordination with primary furniture
+   */
+  private placeSecondaryFurniture(
+    secondaryGroup: { type: string; quantity: number },
+    primaryLayouts: PlacementLayout[],
+    roomBounds: RoomBounds,
+    secondaryConfig: SpaceOptimizationConfig,
+    existingObjects?: SceneObject[]
+  ): PlacementLayout[] {
+    const secondaryLayouts: PlacementLayout[] = [];
+    
+    // Special handling for desk-chair combinations
+    if (secondaryGroup.type === 'Chair' && primaryLayouts.length > 0) {
+      return this.placeChairsForDesks(primaryLayouts, secondaryGroup.quantity, roomBounds, secondaryConfig);
+    }
+
+    // For other secondary furniture, use proximity-based placement
+    return this.placeProximityBasedFurniture(
+      secondaryGroup,
+      primaryLayouts,
+      roomBounds,
+      secondaryConfig,
+      existingObjects
+    );
+  }
+
+  /**
+   * Place chairs specifically for desks
+   */
+  private placeChairsForDesks(
+    deskLayouts: PlacementLayout[],
+    maxChairs: number,
+    roomBounds: RoomBounds,
+    chairConfig: SpaceOptimizationConfig
+  ): PlacementLayout[] {
+    const chairLayouts: PlacementLayout[] = [];
+    
+    for (let i = 0; i < Math.min(deskLayouts.length, maxChairs); i++) {
+      const desk = deskLayouts[i];
+      
+      // Calculate chair position based on desk orientation
+      const chairPosition = this.calculateChairPosition(desk, chairConfig);
+      
+      // Verify chair position is valid (inside room, no conflicts)
+      if (this.isValidChairPosition(chairPosition, roomBounds, chairLayouts)) {
+        chairLayouts.push({
+          id: `Chair-for-${desk.id}`,
+          position: chairPosition,
+          rotation: desk.rotation.clone(), // Same orientation as desk
+          clearanceRadius: chairConfig.minClearance,
+          accessZones: this.generateAccessZones(
+            { worldPos: chairPosition } as GridCell,
+            chairConfig
+          ),
+          groupId: `desk-chair-${i}`
+        });
+      }
+    }
+
+    return chairLayouts;
+  }
+
+  /**
+   * Calculate optimal chair position for a desk
+   */
+  private calculateChairPosition(desk: PlacementLayout, chairConfig: SpaceOptimizationConfig): Vector3 {
+    // Get the desk's front direction based on its rotation
+    const deskRotation = desk.rotation.y;
+    const frontDirection = new Vector3(
+      Math.sin(deskRotation),
+      0,
+      Math.cos(deskRotation)
+    );
+
+    // Place chair in front of desk, accounting for desk depth and chair clearance
+    const distanceFromDesk = 0.6; // 60cm from desk front
+    const chairPosition = desk.position.add(frontDirection.scale(distanceFromDesk));
+
+    return chairPosition;
+  }
+
+  /**
+   * Check if chair position is valid
+   */
+  private isValidChairPosition(
+    chairPosition: Vector3,
+    roomBounds: RoomBounds,
+    existingChairs: PlacementLayout[]
+  ): boolean {
+    // Check if position is inside room
+    if (!isPointInPolygon({ x: chairPosition.x, z: chairPosition.z }, roomBounds.floorPolygon)) {
+      return false;
+    }
+
+    // Check for conflicts with existing chairs
+    for (const existingChair of existingChairs) {
+      const distance = Vector3.Distance(chairPosition, existingChair.position);
+      if (distance < 0.8) { // 80cm minimum distance between chairs
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Place furniture based on proximity to primary furniture
+   */
+  private placeProximityBasedFurniture(
+    secondaryGroup: { type: string; quantity: number },
+    primaryLayouts: PlacementLayout[],
+    roomBounds: RoomBounds,
+    secondaryConfig: SpaceOptimizationConfig,
+    existingObjects?: SceneObject[]
+  ): PlacementLayout[] {
+    const secondaryLayouts: PlacementLayout[] = [];
+    
+    // Generate placement grid for secondary furniture
+    const grid = this.generatePlacementGrid(roomBounds, secondaryConfig, existingObjects);
+    const validPositions = this.filterValidPositions(grid, roomBounds, secondaryConfig);
+    
+    // Sort positions by proximity to primary furniture
+    const proximityScores = validPositions.map(pos => {
+      const minDistance = Math.min(...primaryLayouts.map(primary => 
+        Vector3.Distance(pos.worldPos, primary.position)
+      ));
+      return { position: pos, proximityScore: 1 / (minDistance + 1) };
+    });
+    
+    proximityScores.sort((a, b) => b.proximityScore - a.proximityScore);
+    
+    // Place secondary furniture in best positions
+    for (let i = 0; i < Math.min(secondaryGroup.quantity, proximityScores.length); i++) {
+      const position = proximityScores[i].position;
+      
+      // Check for conflicts with existing secondary layouts
+      if (!this.hasConflictWithExistingPlacements(position, secondaryLayouts, secondaryConfig)) {
+        secondaryLayouts.push({
+          id: `${secondaryGroup.type}-${i + 1}`,
+          position: position.worldPos.clone(),
+          rotation: this.calculateOptimalRotation(position, roomBounds, secondaryConfig),
+          clearanceRadius: secondaryConfig.minClearance,
+          accessZones: this.generateAccessZones(position, secondaryConfig)
+        });
+      }
+    }
+
+    return secondaryLayouts;
+  }
+
+  /**
+   * Generate warnings for coordinated layouts
+   */
+  private generateCoordinatedWarnings(
+    coordinatedLayouts: { [type: string]: PlacementLayout[] },
+    roomBounds: RoomBounds,
+    existingObjects?: SceneObject[]
+  ): string[] {
+    const warnings: string[] = [];
+    
+    // Check for imbalanced furniture ratios
+    const deskCount = (coordinatedLayouts['Desk'] || []).length + 
+                     (coordinatedLayouts['Adjustable Desk'] || []).length +
+                     (coordinatedLayouts['Standing Desk'] || []).length;
+    const chairCount = (coordinatedLayouts['Chair'] || []).length;
+    
+    if (deskCount > 0 && chairCount < deskCount) {
+      warnings.push(`Only ${chairCount} chairs for ${deskCount} desks - consider adding more chairs`);
+    }
+    
+    if (chairCount > deskCount * 2) {
+      warnings.push(`Too many chairs (${chairCount}) for available desks (${deskCount})`);
+    }
+    
+    // Check for furniture grouping issues
+    const allLayouts = Object.values(coordinatedLayouts).flat();
+    const totalArea = allLayouts.reduce((sum, layout) => sum + (layout.clearanceRadius * layout.clearanceRadius * Math.PI), 0);
+    const efficiency = totalArea / roomBounds.area;
+    
+    if (efficiency > 0.85) {
+      warnings.push('Room is very densely packed - consider reducing furniture or using a larger room');
+    }
+    
+    return warnings;
   }
 
   /**

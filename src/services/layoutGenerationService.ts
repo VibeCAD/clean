@@ -771,6 +771,188 @@ export class LayoutGenerationService {
       capacity: obj.furnitureSpec.dimensions.width * obj.furnitureSpec.dimensions.height * obj.furnitureSpec.dimensions.depth
     }));
   }
+
+  /**
+   * Generate coordinated layouts for multiple furniture types
+   */
+  public async generateCoordinatedLayouts(
+    roomMesh: Mesh,
+    sceneObjects: SceneObject[],
+    furnitureRequests: { type: string; quantity: number; priority?: 'primary' | 'secondary' }[],
+    strategy: OptimizationStrategy = { name: 'maximize', priority: 'maximize', description: 'Maximize capacity' },
+    roomId: string
+  ): Promise<GeneratedLayout[]> {
+    console.log(`🎨 Generating coordinated layouts for ${furnitureRequests.length} furniture types`);
+    
+    // Auto-assign priorities if not specified
+    const furnitureGroups = this.assignPriorities(furnitureRequests);
+    
+    // Use coordinated optimization
+    const coordinatedResult = spaceOptimizer.optimizeCoordinatedSpace(
+      roomMesh,
+      furnitureGroups,
+      strategy,
+      sceneObjects
+    );
+    
+    // Convert coordinated layouts to GeneratedLayout format
+    const generatedLayouts: GeneratedLayout[] = [];
+    
+    for (const [furnitureType, layouts] of Object.entries(coordinatedResult.coordinatedLayouts)) {
+      if (layouts.length === 0) continue;
+      
+      const furnitureSpec = furnitureDatabase.getFurniture(furnitureType);
+      if (!furnitureSpec) {
+        console.warn(`No furniture spec found for ${furnitureType}`);
+        continue;
+      }
+      
+      // Create objects for this furniture type
+      const objects = layouts.map((layout, index) => ({
+        id: layout.id || `${furnitureType.toLowerCase()}-${index + 1}`,
+        type: furnitureType,
+        position: layout.position.clone(),
+        rotation: layout.rotation ? layout.rotation.clone() : new Vector3(0, 0, 0),
+        scale: new Vector3(1, 1, 1),
+        furnitureSpec
+      }));
+      
+      // Create a layout for this furniture type
+      const generatedLayout: GeneratedLayout = {
+        id: `coordinated-${furnitureType}-${strategy.name}-${Date.now()}`,
+        strategy,
+        objects,
+        metrics: {
+          score: coordinatedResult.efficiency * 100,
+          spaceEfficiency: coordinatedResult.efficiency,
+          accessibility: 85, // Coordinated layouts generally have better accessibility
+          ergonomics: furnitureType === 'Desk' ? 90 : 75, // Desks with chairs are more ergonomic
+          safety: 80
+        },
+        validation: {} as PlacementValidationResult, // Will be filled by caller
+        zones: {
+          functional: this.identifyFunctionalZones(objects, {} as RoomAnalysisResult),
+          circulation: [],
+          storage: []
+        }
+      };
+      
+      generatedLayouts.push(generatedLayout);
+    }
+    
+    // Create a combined layout with all furniture types
+    if (generatedLayouts.length > 1) {
+      const combinedObjects = generatedLayouts.flatMap(layout => layout.objects);
+      const combinedLayout: GeneratedLayout = {
+        id: `coordinated-combined-${strategy.name}-${Date.now()}`,
+        strategy,
+        objects: combinedObjects,
+        metrics: {
+          score: coordinatedResult.efficiency * 100,
+          spaceEfficiency: coordinatedResult.efficiency,
+          accessibility: 85,
+          ergonomics: 85,
+          safety: 80
+        },
+        validation: {} as PlacementValidationResult,
+        zones: {
+          functional: this.identifyFunctionalZones(combinedObjects, {} as RoomAnalysisResult),
+          circulation: [],
+          storage: []
+        }
+      };
+      
+      generatedLayouts.push(combinedLayout);
+    }
+    
+    return generatedLayouts;
+  }
+
+  /**
+   * Assign priorities to furniture requests
+   */
+  private assignPriorities(
+    furnitureRequests: { type: string; quantity: number; priority?: 'primary' | 'secondary' }[]
+  ): { type: string; quantity: number; priority: 'primary' | 'secondary' }[] {
+    const primaryFurniture = ['Desk', 'Adjustable Desk', 'Standing Desk', 'Table', 'Simple table', 'Sofa'];
+    const secondaryFurniture = ['Chair', 'Bookcase'];
+    
+    return furnitureRequests.map(request => {
+      if (request.priority) {
+        return request as { type: string; quantity: number; priority: 'primary' | 'secondary' };
+      }
+      
+      // Auto-assign priority based on furniture type
+      const priority = primaryFurniture.includes(request.type) ? 'primary' : 'secondary';
+      return { ...request, priority };
+    });
+  }
+
+  /**
+   * Enhanced generate layouts method that detects when to use coordinated placement
+   */
+  public async generateLayoutsEnhanced(
+    roomMesh: Mesh,
+    sceneObjects: SceneObject[],
+    request: LayoutGenerationRequest,
+    getMeshById: (id: string) => Mesh | null
+  ): Promise<LayoutGenerationResult> {
+    // Check if this is a coordinated furniture request
+    const furnitureRequirements = this.determineFurnitureRequirements(request, {} as RoomAnalysisResult);
+    
+    const hasDesks = furnitureRequirements.some(req => 
+      req.type === 'Desk' || req.type === 'Adjustable Desk' || req.type === 'Standing Desk'
+    );
+    const hasChairs = furnitureRequirements.some(req => req.type === 'Chair');
+    
+    // Use coordinated placement for desk-chair combinations
+    if (hasDesks && hasChairs) {
+      console.log('🎯 Using coordinated placement for desk-chair combination');
+      
+      // Convert furniture requirements to coordinated format
+      const coordinatedRequests = furnitureRequirements.map(req => ({
+        type: req.type,
+        quantity: req.quantity
+        // Priority will be auto-assigned by assignPriorities method
+      }));
+      
+      const coordinatedLayouts = await this.generateCoordinatedLayouts(
+        roomMesh,
+        sceneObjects,
+        coordinatedRequests,
+        request.strategies?.[0] || { name: 'maximize', priority: 'maximize', description: 'Maximize capacity' },
+        request.roomId
+      );
+      
+      // Validate layouts
+      for (const layout of coordinatedLayouts) {
+        layout.validation = placementConstraintsService.validatePlacement(
+          roomMesh,
+          this.convertLayoutToSceneObjects(layout),
+          request.roomId
+        );
+      }
+      
+      // Calculate room analysis
+      const roomAnalysis = roomAnalysisService.analyzeRoom(roomMesh, sceneObjects, request.roomId);
+      
+      // Generate recommendations
+      const recommendations = this.generateRecommendations(coordinatedLayouts);
+      
+      // Calculate summary
+      const summary = this.calculateSummary(coordinatedLayouts, coordinatedLayouts);
+      
+      return {
+        layouts: coordinatedLayouts,
+        recommendations,
+        roomAnalysis,
+        summary
+      };
+    }
+    
+    // Fall back to original method for other cases
+    return this.generateLayouts(roomMesh, sceneObjects, request, getMeshById);
+  }
 }
 
 // Export singleton instance

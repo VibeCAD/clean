@@ -285,10 +285,17 @@ export const AISidebar: React.FC<AISidebarProps> = ({
                 newId = `${command.type}-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
             }
             
+            // Determine default Y position based on object type
+            // GLB objects should start at y=0 (floor level) since they have proper pivot adjustment
+            // Primitive objects can start at y=1 for backward compatibility
+            const isGLBObject = !command.type.startsWith('house-') && 
+                               !['cube', 'sphere', 'cylinder', 'plane', 'torus', 'cone', 'nurbs', 'imported-glb', 'imported-stl', 'imported-obj'].includes(command.type);
+            const defaultY = isGLBObject ? 0 : 1;
+            
             const newObj: SceneObject = {
               id: newId,
               type: command.type,
-              position: new Vector3(command.x || 0, command.y || 1, command.z || 0),
+              position: new Vector3(command.x || 0, command.y || defaultY, command.z || 0),
               scale: new Vector3(1, 1, 1),
               rotation: new Vector3(0, 0, 0),
               color: command.color || (command.type.startsWith('house-') ? '#8B4513' : '#3498db'),
