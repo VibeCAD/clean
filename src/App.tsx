@@ -20,8 +20,23 @@ import { CompassOverlay } from './components/ui/CompassOverlay'
 // Import the MeasurementOverlay component
 import { MeasurementOverlay } from './components/ui/MeasurementOverlay'
 
+// Import the Dock component
+import { Dock, DockIcon } from './components/magicui/dock'
+
+// Import the BorderBeam component  
+import { BorderBeam } from './components/magicui/border-beam'
+
+// Import the DockCard component
+import { DockCard } from './components/magicui/dock-card'
+
+// Import Lucide React icons
+import { Eye, Move, Palette, TestTubeDiagonal, WandSparkles, WandSparklesIcon, Wrench, MousePointer2, RotateCw, Scale, Sparkles, Bot, Zap, Brush, PaintBucket, Droplets, Settings, Grid3x3, Shield, Camera, Square, Globe } from 'lucide-react'
+
 // Import the keyboard shortcuts hook
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+
+// Import the TopToolbar component
+import { TopToolbar } from './components/toolbar/TopToolbar'
 
 import { useSceneStore } from './state/sceneStore'
 import type { SceneObject, PrimitiveType, TransformMode, ControlPointVisualization } from './types/types'
@@ -37,6 +52,60 @@ function App() {
   // Modal state for custom room drawing
   const [showCustomRoomModal, setShowCustomRoomModal] = useState(false)
   
+  // Dock hover card state
+  const [dockHoverCard, setDockHoverCard] = useState<{
+    isVisible: boolean;
+    title: string;
+    description?: string;
+    content?: React.ReactNode;
+    position: { x: number; y: number };
+    icons?: React.ComponentType<any>[];
+  } | null>(null)
+  
+  // Timeout for hiding the card with delay
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Function to show card immediately
+  const showDockCard = (cardData: any) => {
+    // Clear any pending hide timeout
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+      hideTimeoutRef.current = null
+    }
+    setDockHoverCard({ ...cardData, isVisible: true })
+  }
+
+  // Function to hide card with delay
+  const hideDockCard = () => {
+    // Clear any existing timeout
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+    }
+    
+    // Set a delay before hiding
+    hideTimeoutRef.current = setTimeout(() => {
+      setDockHoverCard(null)
+      hideTimeoutRef.current = null
+    }, 300) // 300ms delay
+  }
+
+    // Function to cancel hiding (when hovering over card)
+  const cancelHideDockCard = () => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+      hideTimeoutRef.current = null
+    }
+  }
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current)
+      }
+    }
+  }, [])
+   
   // Use the new babylon scene hook
   const { sceneAPI, sceneInitialized } = useBabylonScene(canvasRef)
 
@@ -961,7 +1030,7 @@ function App() {
   const renderTopToolbar = () => (
     <div className="top-toolbar">
       <div className="toolbar-menu">
-        <div className="toolbar-brand">VibeCad Pro</div>
+        <div className="text-4xl font-bold text-pink-500">MOORPH</div>
         
         <div className="toolbar-status">
           <span className="status-item">
@@ -2012,6 +2081,135 @@ function App() {
           onOpenCustomRoomModal={handleOpenCustomRoomModal}
         />
       </div>
+      
+      {/* Dock Component Demo */}
+      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+        <Dock className="relative overflow-hidden bg-black/10 backdrop-blur-lg border border-white/20">
+          <DockIcon
+            cardTitle="Transform Tools"
+            cardDescription="Move, rotate, and scale objects in 3D space"
+            cardContent={
+              <div className="text-xs text-white/80">
+                • Move objects with precision<br/>
+                • Rotate in any direction<br/>
+                • Scale uniformly or per axis
+              </div>
+            }
+            onHoverCard={(cardData) => showDockCard({ 
+              ...cardData,
+              icons: [MousePointer2, Move, RotateCw, Scale]
+            })}
+            onLeaveCard={() => hideDockCard()}
+          >
+             <Move className="w-6 h-6 text-white" />
+          </DockIcon>
+          <DockIcon
+            cardTitle="Magic Wand"
+            cardDescription="AI-powered scene generation and editing"
+            cardContent={
+              <div className="text-xs text-white/80">
+                Use natural language to create<br/>
+                and modify your 3D scenes
+              </div>
+            }
+            onHoverCard={(cardData) => showDockCard({ 
+              ...cardData,
+              icons: [Bot, Sparkles, Zap, WandSparkles]
+            })}
+            onLeaveCard={() => hideDockCard()}
+          >
+            <WandSparklesIcon className="w-6 h-6 text-white" />
+          </DockIcon>
+          <DockIcon
+            cardTitle="Material Editor"
+            cardDescription="Apply colors and textures to objects"
+            cardContent={
+              <div className="text-xs text-white/80">
+                • RGB color picker<br/>
+                • Material presets<br/>
+                • Texture library
+              </div>
+            }
+            onHoverCard={(cardData) => showDockCard({ 
+              ...cardData,
+              icons: [Brush, PaintBucket, Palette, Droplets]
+            })}
+            onLeaveCard={() => hideDockCard()}
+          >
+            <Palette className="w-6 h-6 text-white" />
+          </DockIcon>
+          <DockIcon
+            cardTitle="Tools & Settings"
+            cardDescription="Configure snap settings and physics"
+            cardContent={
+              <div className="text-xs text-white/80">
+                • Grid snapping<br/>
+                • Collision detection<br/>
+                • Movement controls
+              </div>
+            }
+            onHoverCard={(cardData) => showDockCard({ 
+              ...cardData,
+              icons: [Settings, Grid3x3, Shield, Wrench]
+            })}
+            onLeaveCard={() => hideDockCard()}
+          >
+            <Wrench className="w-6 h-6 text-white" />
+          </DockIcon>
+          <DockIcon
+            cardTitle="Testing Suite"
+            cardDescription="Debug and test scene functionality"
+            cardContent={
+              <div className="text-xs text-white/80">
+                Quick tools for testing<br/>
+                object creation and placement
+              </div>
+            }
+            onHoverCard={(cardData) => showDockCard({ 
+              ...cardData,
+              icons: [TestTubeDiagonal, Square, Globe, Zap]
+            })}
+            onLeaveCard={() => hideDockCard()}
+          >
+            <TestTubeDiagonal className="w-6 h-6 text-white" />
+          </DockIcon>
+          <DockIcon
+            cardTitle="View Controls"
+            cardDescription="Camera and display settings"
+            cardContent={
+              <div className="text-xs text-white/80">
+                • Camera positions<br/>
+                • Wireframe mode<br/>
+                • Grid visibility
+              </div>
+            }
+            onHoverCard={(cardData) => showDockCard({ 
+              ...cardData,
+              icons: [Eye, Camera, Square, Settings]
+            })}
+            onLeaveCard={() => hideDockCard()}
+          >
+            <Eye className="w-6 h-6 text-white" />
+          </DockIcon>
+          <BorderBeam duration={8} size={100} colorFrom="#ffaa40" colorTo="#9c40ff" />
+        </Dock>
+      </div>
+      
+      {/* Dock Hover Card - rendered outside dock boundaries */}
+      {dockHoverCard && (
+        <DockCard
+          isVisible={dockHoverCard.isVisible}
+          title={dockHoverCard.title}
+          description={dockHoverCard.description}
+          position={dockHoverCard.position}
+          icons={dockHoverCard.icons}
+          onMouseEnter={cancelHideDockCard}
+          onMouseLeave={hideDockCard}
+        >
+          {dockHoverCard.content}
+        </DockCard>
+      )}
+      
       {/* Custom Room Drawing Modal */}
       <CustomRoomModal
         isOpen={showCustomRoomModal}
