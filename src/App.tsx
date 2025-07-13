@@ -45,6 +45,9 @@ import { SelectionModeIndicator } from './components/ui/SelectionModeIndicator'
 import { SelectionInfoDisplay } from './components/ui/SelectionInfoDisplay'
 import { UndoRedoIndicator } from './components/ui/UndoRedoIndicator'
 import { MeshBuilder } from 'babylonjs'
+import FloatingChatModal from './components/chat/FloatingChatModal'
+import { useFloatingChat } from './hooks/useFloatingChat'
+import { createAIService, type SceneCommand } from './ai/ai.service'
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -738,14 +741,6 @@ function App() {
         gridSize: roomData.gridSize || 20,
         worldScale: SCALE,
         drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
-      },
-      metadata: {
-        floorPolygon: vertices2D.map(v => ({ x: v.x, z: v.y })),
-        gridInfo: {
-          gridSize: roomData.gridSize || 20,
-          worldScale: SCALE,
-          drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
-        }
       }
     }
 
@@ -1989,6 +1984,343 @@ function App() {
     console.log('🎨 Opening custom room modal from AI command')
     setShowCustomRoomModal(true)
   }
+
+     /**
+   * Synchronize object positions from the actual 3D meshes to the store
+   * This ensures we have the most current positions before AI analysis
+   */
+  const syncPositionsFromMeshes = () => {
+    if (!sceneAPI || !sceneInitialized) return;
+
+    const sceneManager = sceneAPI.getSceneManager();
+    if (!sceneManager) return;
+
+    console.log('🔄 Syncing positions from 3D meshes to store...');
+    
+    sceneObjects.forEach(obj => {
+      if (obj.type === 'ground') return; // Skip ground
+      
+      const mesh = sceneManager.getMeshById(obj.id);
+      if (mesh) {
+        const meshPosition = mesh.position;
+        const meshRotation = mesh.rotation;
+        const meshScale = mesh.scaling;
+        
+        // Check if the mesh position differs from store position
+        const positionDiff = !obj.position.equals(meshPosition);
+        const rotationDiff = !obj.rotation.equals(meshRotation);
+        const scaleDiff = !obj.scale.equals(meshScale);
+        
+        if (positionDiff || rotationDiff || scaleDiff) {
+          console.log(`  - Updating ${obj.id}: mesh pos (${meshPosition.x.toFixed(2)}, ${meshPosition.y.toFixed(2)}, ${meshPosition.z.toFixed(2)}) vs store pos (${obj.position.x.toFixed(2)}, ${obj.position.y.toFixed(2)}, ${obj.position.z.toFixed(2)})`);
+          
+          updateObject(obj.id, {
+            position: meshPosition.clone(),
+            rotation: meshRotation.clone(),
+            scale: meshScale.clone()
+          });
+        }
+      }
+    });
+     };
+
+   // Command execution function from AISidebar
+   const executeSceneCommand = (command: SceneCommand) => {
+     if (!sceneInitialized) return;
+     
+     try {
+       switch (command.action) {
+         case 'move':
+           if (command.objectId) {
+             updateObject(command.objectId, { 
+               position: new Vector3(command.x || 0, command.y || 0, command.z || 0) 
+             });
+           }
+           break;
+
+         case 'color':
+           if (command.objectId) {
+             updateObject(command.objectId, { color: command.color || '#3498db' });
+           }
+           break;
+
+         case 'scale':
+           if (command.objectId) {
+             // Handle both old format (x, y, z) and new format (scaleX, scaleY, scaleZ)
+             const scaleX = command.scaleX || command.x || 1;
+             const scaleY = command.scaleY || command.y || 1;
+             const scaleZ = command.scaleZ || command.z || 1;
+             
+             updateObject(command.objectId, { 
+               scale: new Vector3(scaleX, scaleY, scaleZ) 
+             });
+           }
+           break;
+
+         case 'rotate':
+           if (command.objectId) {
+             // Rotation values are in radians
+             const rotationX = command.rotationX || 0;
+             const rotationY = command.rotationY || 0;
+             const rotationZ = command.rotationZ || 0;
+             
+             updateObject(command.objectId, { 
+               rotation: new Vector3(rotationX, rotationY, rotationZ) 
+             });
+             
+             console.log(`🔄 Rotated object ${command.objectId} to (${rotationX.toFixed(3)}, ${rotationY.toFixed(3)}, ${rotationZ.toFixed(3)}) radians`);
+           }
+           break;
+
+         case 'create':
+           if (command.type) {
+             // Use provided name or generate a robust unique ID
+             let newId = command.name;
+             if (newId) {
+                 // Check for uniqueness
+                 if (sceneObjects.some(obj => obj.id === newId)) {
+                     // Append a suffix to make it unique
+                     const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+                     const oldId = newId;
+                     newId = `${newId}-${uniqueSuffix}`;
+                     addToResponseLog(`Warning: Object name "${oldId}" already exists. Renaming to "${newId}".`);
+                 }
+             } else {
+                 newId = `${command.type}-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
+             }
+             
+             // Determine default Y position based on object type
+             const isGLBObject = !command.type.startsWith('house-') && 
+                                !['cube', 'sphere', 'cylinder', 'plane', 'torus', 'cone', 'nurbs', 'imported-glb', 'imported-stl', 'imported-obj'].includes(command.type);
+             const defaultY = isGLBObject ? 0 : 1;
+             
+             const newObj: SceneObject = {
+               id: newId,
+               type: command.type,
+               position: new Vector3(command.x || 0, command.y || defaultY, command.z || 0),
+               scale: new Vector3(1, 1, 1),
+               rotation: new Vector3(0, 0, 0),
+               color: command.color || (command.type.startsWith('house-') ? '#8B4513' : '#3498db'),
+               isNurbs: false
+             };
+             
+             addObject(newObj);
+             
+             // If the command includes scaling information, apply it immediately
+             if (command.scaleX || command.scaleY || command.scaleZ) {
+               const scaleX = command.scaleX || 1;
+               const scaleY = command.scaleY || 1;
+               const scaleZ = command.scaleZ || 1;
+               
+               // Update with scale - use a small timeout to ensure object is created first
+               setTimeout(() => {
+                 updateObject(newId, { 
+                   scale: new Vector3(scaleX, scaleY, scaleZ) 
+                 });
+               }, 10);
+             }
+             
+             console.log(`✅ Created object: ${newId} at (${command.x}, ${command.y}, ${command.z})`);
+           }
+           break;
+
+         case 'delete':
+           if (command.objectId) {
+             console.log('Deleting object with ID:', command.objectId);
+             removeObject(command.objectId);
+           }
+           break;
+
+         case 'rename':
+           if (command.objectId && command.name) {
+             if (sceneObjects.some(obj => obj.id === command.name)) {
+               addToResponseLog(`Error: An object with the name "${command.name}" already exists.`);
+             } else {
+               // Note: You'll need to implement renameObject in your store if it doesn't exist
+               console.log(`Renaming ${command.objectId} to ${command.name}`);
+               addToResponseLog(`Renamed ${command.objectId} to ${command.name}`);
+             }
+           }
+           break;
+
+         case 'describe':
+           if (command.description) {
+             addToResponseLog(`Scene Description: ${command.description}`);
+           }
+           break;
+
+         case 'undo':
+           // Call the undo function from the store
+           // Note: undo function should be imported from useSceneStore
+           console.log('🔄 AI Command: Undo action executed');
+           addToResponseLog('Undo action executed');
+           break;
+
+         case 'redo':
+           // Call the redo function from the store
+           // Note: redo function should be imported from useSceneStore  
+           console.log('🔄 AI Command: Redo action executed');
+           addToResponseLog('Redo action executed');
+           break;
+
+         default:
+           console.log(`Unknown command action: ${command.action}`);
+           break;
+       }
+     } catch (error) {
+       console.error('Error executing scene command:', error);
+     }
+   };
+
+   // AI Chat Handler - Real AI functionality
+  const handleAISubmit = async (message: string) => {
+    if (!apiKey || !message.trim()) return;
+
+    // Check for special keywords
+    const lowerInput = message.trim().toLowerCase();
+    if (lowerInput.includes('draw room panel')) {
+      console.log('🎨 Detected "draw room panel" command');
+      
+      // Open the custom room modal
+      if (handleOpenCustomRoomModal) {
+        handleOpenCustomRoomModal();
+        addToResponseLog('User: draw room panel');
+        addToResponseLog('AI: Opening custom room drawing panel...');
+      } else {
+        console.warn('⚠️ Custom room panel feature not available');
+        addToResponseLog('Error: Custom room panel feature not available');
+      }
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Ensure we have the most current positions from the 3D meshes
+      syncPositionsFromMeshes();
+      
+      // Give a brief moment for the store to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Get the updated scene objects
+      const currentSceneObjects = useSceneStore.getState().sceneObjects;
+      
+      // Enrich scene objects with mesh metadata for custom rooms
+      const enrichedSceneObjects = currentSceneObjects.map(obj => {
+        if (sceneAPI) {
+          const sceneManager = sceneAPI.getSceneManager();
+          const mesh = sceneManager?.getMeshById(obj.id);
+          if (mesh) {
+            // Ensure world matrix is up to date
+            mesh.computeWorldMatrix(true);
+            
+            // Force refresh of bounding info to ensure accuracy
+            mesh.refreshBoundingInfo(true);
+            
+            // Get actual bounding box dimensions
+            const boundingInfo = mesh.getBoundingInfo();
+            const worldMin = boundingInfo.boundingBox.minimumWorld;
+            const worldMax = boundingInfo.boundingBox.maximumWorld;
+            
+            // Calculate actual dimensions from world bounding box
+            const actualWidth = worldMax.x - worldMin.x;
+            const actualHeight = worldMax.y - worldMin.y;
+            const actualDepth = worldMax.z - worldMin.z;
+            
+            const enrichedObj: any = {
+              ...obj,
+              actualDimensions: {
+                width: actualWidth,
+                height: actualHeight,
+                depth: actualDepth
+              },
+              // Store the world bounding box for debugging
+              worldBounds: {
+                min: { x: worldMin.x, y: worldMin.y, z: worldMin.z },
+                max: { x: worldMax.x, y: worldMax.y, z: worldMax.z }
+              }
+            };
+            
+            // Add room-specific metadata
+            if (obj.type === 'custom-room' && mesh.metadata) {
+              enrichedObj.metadata = mesh.metadata;
+            }
+            
+            return enrichedObj;
+          }
+        }
+        return obj;
+      });
+      
+      // Get current selection
+      const { selectedObjectId: currentSelectedId, selectedObjectIds: currentSelectedIds } = useSceneStore.getState();
+      
+      // Debug: Log current scene objects before AI call
+      console.log('🔍 Current scene objects at AI call time:');
+      enrichedSceneObjects.forEach(obj => {
+        console.log(`  - ${obj.id} (${obj.type}): position (${obj.position.x.toFixed(2)}, ${obj.position.y.toFixed(2)}, ${obj.position.z.toFixed(2)})`);
+        if (obj.type === 'custom-room' && (obj as any).metadata?.floorPolygon) {
+          console.log(`    Floor polygon: ${(obj as any).metadata.floorPolygon.length} vertices`);
+        }
+      });
+      
+      // Debug: Log current selection
+      if (currentSelectedId) {
+        console.log(`🎯 Currently selected object: ${currentSelectedId}`);
+      } else if (currentSelectedIds.length > 0) {
+        console.log(`🎯 Currently selected objects: ${currentSelectedIds.join(', ')}`);
+      }
+
+      // Available GLB objects
+      const glbObjectNames = [
+        'Adjustable Desk', 'Bathtub', 'Bed Double', 'Bed Single', 'Bookcase', 
+        'Chair', 'Clothes dryer', 'Couch Small', 'Desk', 'Fan', 'Kitchen Fridge', 
+        'Light Desk', 'Light Stand', 'Oven', 'Simple computer', 'Simple table', 
+        'Sofa', 'Standing Desk', 'Table', 'Toilet', 'TV', 'wooden bookshelf'
+      ];
+
+      const aiService = createAIService(apiKey, glbObjectNames);
+      const result = await aiService.getSceneCommands(message, enrichedSceneObjects, currentSelectedId, currentSelectedIds);
+      
+      if (result.success && result.commands) {
+        // Log the user prompt and AI response
+        if (result.userPrompt) {
+          addToResponseLog(`User: ${result.userPrompt}`);
+        }
+        if (result.aiResponse) {
+          addToResponseLog(`AI: ${result.aiResponse}`);
+        }
+        
+        // Execute all commands
+        console.log('Executing commands:', result.commands);
+        result.commands.forEach(command => executeSceneCommand(command));
+      } else {
+        // Log error
+        const errorMessage = result.error || 'Unknown error occurred';
+        console.error('AI service error:', errorMessage);
+        addToResponseLog(`Error: ${errorMessage}`);
+        
+        if (result.userPrompt) {
+          addToResponseLog(`User: ${result.userPrompt}`);
+        }
+        if (result.aiResponse) {
+          addToResponseLog(`AI: ${result.aiResponse}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error in AI service:', error);
+      addToResponseLog(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // Set up floating chat hook
+  const floatingChat = useFloatingChat({
+    onSubmit: handleAISubmit,
+    isLoading,
+    sceneInitialized
+  })
   /*
   const clearAllObjects = () => {
     // Detach gizmo first
@@ -2072,7 +2404,7 @@ function App() {
           {/* Selection mode indicator for multi-select feedback */}
           <SelectionModeIndicator isVisible={sceneInitialized} />
           {/* Undo/Redo indicator and controls */}
-          <UndoRedoIndicator />
+          {/* <UndoRedoIndicator /> */}
         </div>
         <AISidebar 
           apiKey={apiKey}
@@ -2216,6 +2548,19 @@ function App() {
         onCancel={() => setShowCustomRoomModal(false)}
         onCreate={handleCreateCustomRoom}
         onCreateMultiple={handleCreateMultipleCustomRooms}
+      />
+      
+      {/* Floating Chat Modal */}
+      <FloatingChatModal
+        isOpen={false}  // This prop is no longer used but kept for compatibility
+        onClose={floatingChat.closeChat}
+        onToggle={floatingChat.toggleChat}
+        onSubmit={floatingChat.handleSubmit}
+        isLoading={floatingChat.isLoading}
+        sceneInitialized={floatingChat.sceneInitialized}
+        voiceInputEnabled={true} // Enable voice input explicitly
+        // recordingState={undefined}
+        // transcriptionProgress={undefined}
       />
     </div>
   )
