@@ -2250,6 +2250,8 @@ function App() {
         sceneInitialized={floatingChat.sceneInitialized}
         voiceInputEnabled={true} // Enable voice input explicitly
         apiKey={apiKey} // Pass the API key for speech-to-text
+        sceneAPI={sceneAPI} // Pass the scene API for full command processing
+        onOpenCustomRoomModal={handleOpenCustomRoomModal} // Pass the room modal handler
         // recordingState={undefined}
         // transcriptionProgress={undefined}
       />
