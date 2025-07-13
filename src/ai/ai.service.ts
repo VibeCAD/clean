@@ -86,6 +86,7 @@ export interface AIServiceResult {
     'plane': new Vector3(0, 1, 0), // Planes face up by default
     'torus': new Vector3(0, 0, 1),
     'cone': new Vector3(0, 0, 1),
+    'rectangle': new Vector3(0, 0, 1),
     
     // Housing objects
     'house-basic': new Vector3(0, 0, 1),
@@ -320,6 +321,7 @@ export interface AIServiceResult {
       'plane': { width: 2, height: 0.1, depth: 2 },
       'torus': { width: 2, height: 0.5, depth: 2 },
       'cone': { width: 2, height: 2, depth: 2 },
+      'rectangle': { width: 2, height: 2, depth: 2 },
       'house-basic': { width: 2, height: 2, depth: 1.5 },
       'house-room': { width: 2, height: 1.5, depth: 2 },
       'house-hallway': { width: 1, height: 1.5, depth: 3 },
@@ -846,6 +848,7 @@ export interface AIServiceResult {
       'plane': { width: 2, height: 0.1, depth: 2 },
       'torus': { width: 2, height: 0.5, depth: 2 },
       'cone': { width: 2, height: 2, depth: 2 },
+      'rectangle': { width: 2, height: 2, depth: 2 },
       'house-basic': { width: 2, height: 2, depth: 1.5 },
       'house-room': { width: 2, height: 1.5, depth: 2 },
       'house-hallway': { width: 1, height: 1.5, depth: 3 },
@@ -1036,7 +1039,7 @@ AVAILABLE TEXTURES:
 - Red Brick Wall: Classic red brick masonry (use: "brick", "brick wall", "red brick", "masonry")
 
 OBJECT TYPES:
-Basic: cube, sphere, cylinder, plane, torus, cone
+Basic: cube, sphere, cylinder, plane, torus, cone, rectangle
 Housing: house-basic, house-room, house-hallway, house-roof-flat, house-roof-pitched
 
 GLB Objects (3D Models): ${glbObjectsList}

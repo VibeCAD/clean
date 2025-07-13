@@ -1,7 +1,7 @@
 import { Vector3, Vector2, Quaternion, Mesh } from 'babylonjs'
 
 export type TransformMode = 'select' | 'move' | 'rotate' | 'scale'
-export type PrimitiveType = 'cube' | 'sphere' | 'cylinder' | 'plane' | 'torus' | 'cone' | 'nurbs' | 
+export type PrimitiveType = 'cube' | 'sphere' | 'cylinder' | 'plane' | 'torus' | 'cone' | 'rectangle' | 'nurbs' | 
     'house-basic' | 'house-room' | 'house-hallway' | 'house-roof-flat' | 'house-roof-pitched' |
     'house-room-modular' | 'house-wall' | 'house-ceiling' | 'house-floor' |
     'house-door-single' | 'house-door-double' | 'house-door-sliding' | 'house-door-french' | 'house-door-garage' |

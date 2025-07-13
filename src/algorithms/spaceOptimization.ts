@@ -623,6 +623,7 @@ export class SpaceOptimizer {
       'plane': { width: 2, height: 0.1, depth: 2 },
       'torus': { width: 2, height: 0.5, depth: 2 },
       'cone': { width: 2, height: 2, depth: 2 },
+      'rectangle': { width: 2, height: 2, depth: 2 },
       // GLB furniture objects (common dimensions)
       'Chair': { width: 0.6, height: 0.9, depth: 0.6 },
       'Desk': { width: 1.2, height: 0.75, depth: 0.8 },
