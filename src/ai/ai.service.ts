@@ -5,6 +5,10 @@ import { spaceAnalysisService } from '../services/spaceAnalysisService';
 import type { SpaceAnalysisRequest, SpaceAnalysisResult } from '../services/spaceAnalysisService';
 import { furnitureDatabase } from '../data/furnitureDatabase';
 import type { FurnitureSpec } from '../data/furnitureDatabase';
+import { layoutGenerationService } from '../services/layoutGenerationService';
+import type { OptimizationStrategy } from '../algorithms/spaceOptimization';
+import type { LayoutGenerationRequest } from '../services/layoutGenerationService';
+import { Mesh } from 'babylonjs';
 
 // Extend SceneObject to include metadata for this service's use
 type SceneObject = BabylonSceneObject & {
@@ -2166,3 +2170,216 @@ Object IDs currently in scene: ${objectIds.join(', ')}`;
 export const createAIService = (apiKey: string, glbObjectNames: string[]): AIService => {
   return new AIService(apiKey, glbObjectNames);
 };
+
+/**
+ * Enhanced space optimization that can handle multiple furniture types
+ */
+export const optimizeSpaceEnhanced = async (
+  prompt: string,
+  sceneObjects: SceneObject[],
+  getMeshById: (id: string) => Mesh | null,
+  addPrimitive: (type: any, options: any) => void
+): Promise<string> => {
+  console.log('🔍 Enhanced space optimization request:', prompt);
+  
+  // Extract room information
+  const roomMatch = prompt.match(/(?:in\s+)?room\s+(\w+)/i);
+  if (!roomMatch) {
+    return "Please specify which room you'd like to optimize (e.g., 'room1', 'room2').";
+  }
+  
+  const roomId = roomMatch[1];
+  const roomMesh = getMeshById(roomId);
+  
+  if (!roomMesh) {
+    return `Room '${roomId}' not found. Please check the room name.`;
+  }
+  
+  // Parse multiple furniture types from the prompt
+  const furnitureTypes = extractMultipleFurnitureTypes(prompt);
+  
+  if (furnitureTypes.length === 0) {
+    return "Please specify which furniture types you'd like to optimize (e.g., 'desks and chairs', 'tables and chairs').";
+  }
+  
+  // Parse quantities if specified
+  const furnitureRequests = furnitureTypes.map(type => {
+    const quantityMatch = prompt.match(new RegExp(`(\\d+)\\s+${type}s?`, 'i'));
+    const quantity = quantityMatch ? parseInt(quantityMatch[1]) : 4; // Default to 4
+    return { type, quantity };
+  });
+  
+  // Determine optimization strategy
+  const strategy = extractOptimizationStrategy(prompt);
+  
+  try {
+    // Use the enhanced layout generation for coordinated placement
+    const request: LayoutGenerationRequest = {
+      roomId,
+      customRequirements: {
+        furnitureTypes: furnitureTypes,
+        maxObjects: furnitureRequests.reduce((sum, req) => sum + req.quantity, 0),
+        prioritizeAccessibility: prompt.includes('accessible') || prompt.includes('ADA'),
+        prioritizeEfficiency: prompt.includes('efficient') || prompt.includes('maximize')
+      },
+      strategies: [strategy]
+    };
+    
+    const result = await layoutGenerationService.generateLayoutsEnhanced(
+      roomMesh,
+      sceneObjects,
+      request,
+      getMeshById
+    );
+    
+    if (result.layouts.length === 0) {
+      return `No valid layouts found for the requested furniture in room ${roomId}. The room may be too small or contain obstacles.`;
+    }
+    
+    // Use the best layout (first one, as they're sorted by score)
+    const bestLayout = result.layouts[0];
+    
+    // Place objects in the scene
+    let placedCount = 0;
+    for (const obj of bestLayout.objects) {
+      try {
+        addPrimitive(obj.type as any, {
+          position: obj.position,
+          rotation: obj.rotation,
+          scale: obj.scale,
+          color: getColorForFurnitureType(obj.type)
+        });
+        placedCount++;
+      } catch (error) {
+        console.warn(`Failed to place ${obj.type}:`, error);
+      }
+    }
+    
+    // Generate summary
+    const furnitureTypesSummary = furnitureTypes.join(' and ');
+    const efficiencyPercent = (bestLayout.metrics.spaceEfficiency * 100).toFixed(1);
+    
+    let response = `🏢 **Office Space Optimized!**\n\n`;
+    response += `✅ Successfully placed ${placedCount} items in room ${roomId}:\n`;
+    
+    // Count each furniture type
+    const furnitureCounts = new Map<string, number>();
+    bestLayout.objects.forEach(obj => {
+      furnitureCounts.set(obj.type, (furnitureCounts.get(obj.type) || 0) + 1);
+    });
+    
+    for (const [type, count] of furnitureCounts) {
+      response += `   • ${count} ${type}${count > 1 ? 's' : ''}\n`;
+    }
+    
+    response += `\n📊 **Layout Metrics:**\n`;
+    response += `   • Space efficiency: ${efficiencyPercent}%\n`;
+    response += `   • Layout score: ${bestLayout.metrics.score}/100\n`;
+    response += `   • Accessibility: ${bestLayout.metrics.accessibility}/100\n`;
+    response += `   • Ergonomics: ${bestLayout.metrics.ergonomics}/100\n`;
+    
+    // Add warnings if any
+    if (result.roomAnalysis.recommendations.constraints.length > 0) {
+      response += `\n⚠️ **Considerations:**\n`;
+      result.roomAnalysis.recommendations.constraints.forEach(constraint => {
+        response += `   • ${constraint}\n`;
+      });
+    }
+    
+    // Add layout-specific recommendations
+    if (bestLayout.strategy.name === 'maximize') {
+      response += `\n💡 **Tip:** This layout maximizes furniture capacity. Use 'optimize for comfort' for more spacious arrangements.`;
+    }
+    
+    return response;
+    
+  } catch (error) {
+    console.error('Enhanced space optimization error:', error);
+    return `Failed to optimize space: ${error instanceof Error ? error.message : 'Unknown error'}`;
+  }
+};
+
+/**
+ * Extract multiple furniture types from prompt
+ */
+function extractMultipleFurnitureTypes(prompt: string): string[] {
+  const furnitureTypes: string[] = [];
+  
+  // Common furniture type patterns
+  const furniturePatterns = [
+    /desks?/i,
+    /chairs?/i,
+    /tables?/i,
+    /bookcases?/i,
+    /bookshelves?/i,
+    /sofas?/i
+  ];
+  
+  const typeMapping: { [key: string]: string } = {
+    'desk': 'Desk',
+    'desks': 'Desk',
+    'chair': 'Chair',
+    'chairs': 'Chair',
+    'table': 'Table',
+    'tables': 'Table',
+    'bookcase': 'Bookcase',
+    'bookcases': 'Bookcase',
+    'bookshelf': 'Bookcase',
+    'bookshelves': 'Bookcase',
+    'sofa': 'Sofa',
+    'sofas': 'Sofa'
+  };
+  
+  for (const pattern of furniturePatterns) {
+    const match = prompt.match(pattern);
+    if (match) {
+      const matched = match[0].toLowerCase();
+      const mappedType = typeMapping[matched];
+      if (mappedType && !furnitureTypes.includes(mappedType)) {
+        furnitureTypes.push(mappedType);
+      }
+    }
+  }
+  
+  return furnitureTypes;
+}
+
+/**
+ * Extract optimization strategy from prompt
+ */
+function extractOptimizationStrategy(prompt: string): OptimizationStrategy {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  if (lowerPrompt.includes('comfort') || lowerPrompt.includes('spacious')) {
+    return { name: 'comfort', priority: 'comfort', description: 'Prioritize comfort and spacing' };
+  }
+  
+  if (lowerPrompt.includes('ergonomic') || lowerPrompt.includes('workflow')) {
+    return { name: 'ergonomic', priority: 'ergonomic', description: 'Optimize for ergonomics and workflow' };
+  }
+  
+  if (lowerPrompt.includes('aesthetic') || lowerPrompt.includes('beautiful') || lowerPrompt.includes('balanced')) {
+    return { name: 'aesthetic', priority: 'aesthetic', description: 'Optimize for visual appeal' };
+  }
+  
+  // Default to maximize
+  return { name: 'maximize', priority: 'maximize', description: 'Maximize furniture capacity' };
+}
+
+/**
+ * Get appropriate color for furniture type
+ */
+function getColorForFurnitureType(type: string): string {
+  const colorMap: { [key: string]: string } = {
+    'Desk': '#8B4513',
+    'Adjustable Desk': '#8B4513',
+    'Standing Desk': '#8B4513',
+    'Chair': '#4A4A4A',
+    'Table': '#CD853F',
+    'Simple table': '#CD853F',
+    'Bookcase': '#654321',
+    'Sofa': '#800080'
+  };
+  
+  return colorMap[type] || '#808080';
+}
