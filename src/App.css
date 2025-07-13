@@ -2828,6 +2828,89 @@ body {
   padding: 15px;
 }
 
+/* AI Space Analysis Report Styles */
+.space-analysis-report {
+  border: 2px solid #28a745;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f8fff8 0%, #e8ffe8 100%);
+  margin: 10px 0;
+  padding: 15px;
+}
+
+.space-analysis-report .report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.space-analysis-report .report-header label {
+  color: #155724;
+  font-weight: bold;
+  font-size: 16px;
+  margin: 0;
+}
+
+.space-analysis-report .alternative-options,
+.space-analysis-report .warnings,
+.space-analysis-report .recommendations {
+  margin: 15px 0;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid #d4edda;
+}
+
+.space-analysis-report .alternative-options h5,
+.space-analysis-report .warnings h5,
+.space-analysis-report .recommendations h5 {
+  margin: 0 0 10px 0;
+  color: #155724;
+  font-size: 14px;
+}
+
+.space-analysis-report .alternatives-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.space-analysis-report .alternative-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.space-analysis-report .alt-type {
+  font-weight: 600;
+  color: #495057;
+}
+
+.space-analysis-report .alt-count {
+  font-weight: 500;
+  color: #28a745;
+}
+
+.space-analysis-report .alt-efficiency {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.space-analysis-report ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.space-analysis-report li {
+  margin: 5px 0;
+  color: #495057;
+  font-size: 14px;
+}
+
 .space-optimization-panel > label {
   color: #2c3e50;
   font-weight: bold;
