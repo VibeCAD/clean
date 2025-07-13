@@ -190,3 +190,21 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **React** - Component-based UI
 - **OpenAI** - AI-powered features
 - **Vite** - Fast build tool
+
+## MOORPH Team
+
+### Aleksei Miles
+- **Email**: [milesaleksei@gmail.com](mailto:milesaleksei@gmail.com)
+- **X (Twitter)**: [@not_chalant](https://x.com/not_chalant)
+
+### David Van Story
+- **Email**: [D.vanstory01@gmail.com](mailto:D.vanstory01@gmail.com)
+
+### Mary Smith
+- **Email**: [mary.smith@gauntletai.com](mailto:mary.smith@gauntletai.com)
+- **LinkedIn**: [linkedin.com/in/msmith001](http://linkedin.com/in/msmith001)
+
+### Patrick Skinner
+- **X (Twitter)**: [@PSkinnerTech](https://x.com/PSkinnerTech)
+- **LinkedIn**: [linkedin.com/in/patrickaskinner](https://linkedin.com/in/patrickaskinner)
+- **GitHub**: [@PSkinnerTech](https://github.com/PSkinnerTech)
