@@ -1,6 +1,7 @@
 import { Vector3, Mesh } from 'babylonjs';
 import { findContainingRoom } from '../babylon/roomPhysicsUtils';
 import type { SceneObject } from '../types/types';
+import { furnitureAssociationService } from '../services/furnitureAssociationService';
 
 /**
  * Checks if a 2D point is inside a 2D polygon using the ray-casting algorithm.
@@ -263,7 +264,7 @@ export class SpaceOptimizer {
     efficiency: number;
     warnings: string[];
   } {
-    console.log(`🔍 Starting coordinated space optimization for ${furnitureGroups.length} furniture types`);
+    console.log(`🔍 Starting enhanced coordinated space optimization for ${furnitureGroups.length} furniture types`);
 
     // Analyze room geometry
     const roomBounds = this.analyzeRoomGeometry(roomMesh);
@@ -295,16 +296,57 @@ export class SpaceOptimizer {
       [primaryFurniture.type]: limitedPrimaryLayouts
     };
 
-    // Now place secondary furniture in coordination with primary
-    for (const secondaryGroup of secondaryFurniture) {
-      const secondaryLayouts = this.placeSecondaryFurniture(
-        secondaryGroup,
-        limitedPrimaryLayouts,
-        roomBounds,
-        configs.get(secondaryGroup.type)!,
-        existingObjects
+    // Use furniture association service for enhanced coordination
+    for (const primaryLayout of limitedPrimaryLayouts) {
+      // Calculate room bounding box from corners
+      const minX = Math.min(...roomBounds.corners.map(c => c.x));
+      const maxX = Math.max(...roomBounds.corners.map(c => c.x));
+      const minZ = Math.min(...roomBounds.corners.map(c => c.z));
+      const maxZ = Math.max(...roomBounds.corners.map(c => c.z));
+      
+      const associationPlacement = furnitureAssociationService.calculateAssociatedPlacements(
+        primaryFurniture.type,
+        primaryLayout.position,
+        primaryLayout.rotation,
+        { min: new Vector3(minX, 0, minZ), max: new Vector3(maxX, 2.5, maxZ) }
       );
-      coordinatedLayouts[secondaryGroup.type] = secondaryLayouts;
+
+      // Add associated objects to their respective type groups
+      for (const assocObj of associationPlacement.associatedObjects) {
+        if (!coordinatedLayouts[assocObj.type]) {
+          coordinatedLayouts[assocObj.type] = [];
+        }
+
+        coordinatedLayouts[assocObj.type].push({
+          id: assocObj.groupId,
+          position: assocObj.position,
+          rotation: assocObj.rotation,
+          clearanceRadius: this.getOptimizationConfig(assocObj.type).minClearance,
+          accessZones: [],
+          groupId: assocObj.groupId
+        });
+      }
+    }
+
+    // Handle any remaining secondary furniture not covered by associations
+    for (const secondaryGroup of secondaryFurniture) {
+      const existingSecondaryLayouts = coordinatedLayouts[secondaryGroup.type] || [];
+      const remainingQuantity = Math.max(0, secondaryGroup.quantity - existingSecondaryLayouts.length);
+
+      if (remainingQuantity > 0) {
+        const additionalLayouts = this.placeSecondaryFurniture(
+          { ...secondaryGroup, quantity: remainingQuantity },
+          limitedPrimaryLayouts,
+          roomBounds,
+          configs.get(secondaryGroup.type)!,
+          existingObjects
+        );
+        
+        if (!coordinatedLayouts[secondaryGroup.type]) {
+          coordinatedLayouts[secondaryGroup.type] = [];
+        }
+        coordinatedLayouts[secondaryGroup.type].push(...additionalLayouts);
+      }
     }
 
     // Calculate metrics
@@ -313,7 +355,7 @@ export class SpaceOptimizer {
     const efficiency = this.calculateSpaceEfficiency(allLayouts, roomBounds);
     const warnings = this.generateCoordinatedWarnings(coordinatedLayouts, roomBounds, existingObjects);
 
-    console.log(`✅ Coordinated optimization complete: ${totalObjects} objects total`);
+    console.log(`✅ Enhanced coordinated optimization complete: ${totalObjects} objects total`);
 
     return {
       coordinatedLayouts,

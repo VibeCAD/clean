@@ -15,7 +15,7 @@ export interface PlacementConstraint {
   measurement: {
     actual: number;
     required: number;
-    unit: 'meters' | 'degrees' | 'ratio';
+    unit: 'meters' | 'degrees' | 'ratio' | 'doors' | 'persons';
   };
   regulation?: {
     standard: 'ADA' | 'IBC' | 'OSHA' | 'ergonomic' | 'best-practice';
@@ -65,6 +65,29 @@ export interface PlacementSuggestion {
   alternatives: Vector3[]; // Other position options
 }
 
+export interface FireSafetyRequirement {
+  type: 'egress-width' | 'travel-distance' | 'exit-capacity' | 'separation' | 'access-route';
+  standard: 'IBC' | 'NFPA' | 'ADA' | 'OSHA';
+  requirement: number;
+  unit: 'meters' | 'minutes' | 'persons' | 'ratio';
+  description: string;
+  criticality: 'critical' | 'high' | 'medium';
+}
+
+export interface FireSafetyValidationResult {
+  compliant: boolean;
+  score: number; // 0-100
+  violations: PlacementConstraint[];
+  egressAnalysis: {
+    primaryEgressWidth: number;
+    secondaryEgressWidth: number;
+    maxTravelDistance: number;
+    exitCapacity: number;
+    occupantLoad: number;
+  };
+  recommendations: string[];
+}
+
 /**
  * Placement Constraints Service - validates and optimizes furniture placement
  */
@@ -103,6 +126,58 @@ export class PlacementConstraintsService {
     }
   ];
 
+  // Enhanced fire safety requirements
+  private fireSafetyRequirements: FireSafetyRequirement[] = [
+    {
+      type: 'egress-width',
+      standard: 'IBC',
+      requirement: 1.12, // 44 inches minimum
+      unit: 'meters',
+      description: 'Minimum egress corridor width',
+      criticality: 'critical'
+    },
+    {
+      type: 'egress-width',
+      standard: 'IBC',
+      requirement: 0.81, // 32 inches for secondary egress
+      unit: 'meters', 
+      description: 'Secondary egress pathway width',
+      criticality: 'high'
+    },
+    {
+      type: 'travel-distance',
+      standard: 'IBC',
+      requirement: 76, // 250 feet maximum travel distance
+      unit: 'meters',
+      description: 'Maximum travel distance to exit',
+      criticality: 'critical'
+    },
+    {
+      type: 'exit-capacity',
+      standard: 'IBC',
+      requirement: 0.0076, // 0.3 inches per person
+      unit: 'meters',
+      description: 'Exit capacity per person',
+      criticality: 'high'
+    },
+    {
+      type: 'separation',
+      standard: 'IBC',
+      requirement: 15, // 50 feet minimum separation
+      unit: 'meters',
+      description: 'Minimum separation between exits',
+      criticality: 'high'
+    },
+    {
+      type: 'access-route',
+      standard: 'NFPA',
+      requirement: 1.8, // 6 feet clear width for fire department access
+      unit: 'meters',
+      description: 'Fire department access route width',
+      criticality: 'medium'
+    }
+  ];
+
   /**
    * Validate placement of objects in a room
    */
@@ -134,6 +209,11 @@ export class PlacementConstraintsService {
     
     // Check safety constraints
     warnings.push(...this.validateSafetyConstraints(roomObjects, furnitureSpecs, roomAnalysis));
+    
+    // Check comprehensive fire safety
+    const fireSafetyResult = this.validateFireSafety(roomMesh, sceneObjects, roomId);
+    violations.push(...fireSafetyResult.violations.filter(v => v.severity === 'error'));
+    warnings.push(...fireSafetyResult.violations.filter(v => v.severity === 'warning'));
     
     // Check ergonomic constraints
     suggestions.push(...this.validateErgonomicConstraints(roomObjects, furnitureSpecs, roomAnalysis));
@@ -658,6 +738,287 @@ export class PlacementConstraintsService {
   }
 
   /**
+   * Comprehensive fire safety validation
+   */
+  public validateFireSafety(
+    roomMesh: Mesh,
+    sceneObjects: SceneObject[],
+    roomId: string
+  ): FireSafetyValidationResult {
+    console.log(`🔥 Validating fire safety for room ${roomId}`);
+    
+    const roomAnalysis = roomAnalysisService.analyzeRoom(roomMesh, sceneObjects, roomId);
+    const roomObjects = this.getObjectsInRoom(sceneObjects, roomAnalysis);
+    
+    const violations: PlacementConstraint[] = [];
+    const recommendations: string[] = [];
+    
+    // Calculate occupant load (rough estimate: 1 person per 9.3 sq meters for office space)
+    const occupantLoad = Math.ceil(roomAnalysis.roomGeometry.area / 9.3);
+    
+    // Validate egress requirements
+    const egressAnalysis = this.validateEgressRequirements(roomAnalysis, roomObjects, occupantLoad);
+    violations.push(...egressAnalysis.violations);
+    recommendations.push(...egressAnalysis.recommendations);
+    
+    // Validate travel distances
+    const travelDistanceResults = this.validateTravelDistances(roomAnalysis, roomObjects);
+    violations.push(...travelDistanceResults.violations);
+    recommendations.push(...travelDistanceResults.recommendations);
+    
+    // Validate exit separation
+    const separationResults = this.validateExitSeparation(roomAnalysis);
+    violations.push(...separationResults.violations);
+    recommendations.push(...separationResults.recommendations);
+    
+    // Calculate compliance score
+    const criticalViolations = violations.filter(v => v.severity === 'error').length;
+    const highViolations = violations.filter(v => v.severity === 'warning').length;
+    const score = Math.max(0, 100 - (criticalViolations * 30) - (highViolations * 15));
+    
+    return {
+      compliant: criticalViolations === 0,
+      score,
+      violations,
+      egressAnalysis: {
+        primaryEgressWidth: egressAnalysis.primaryWidth,
+        secondaryEgressWidth: egressAnalysis.secondaryWidth,
+        maxTravelDistance: travelDistanceResults.maxDistance,
+        exitCapacity: egressAnalysis.capacity,
+        occupantLoad
+      },
+      recommendations
+    };
+  }
+
+  /**
+   * Validate egress requirements
+   */
+  private validateEgressRequirements(
+    roomAnalysis: RoomAnalysisResult,
+    roomObjects: SceneObject[],
+    occupantLoad: number
+  ): {
+    violations: PlacementConstraint[];
+    recommendations: string[];
+    primaryWidth: number;
+    secondaryWidth: number;
+    capacity: number;
+  } {
+    const violations: PlacementConstraint[] = [];
+    const recommendations: string[] = [];
+    
+    // Find doors and calculate egress widths
+    const doors = roomAnalysis.constraints.filter(c => c.type === 'door');
+    const pathways = roomAnalysis.accessibilityPaths;
+    
+    if (doors.length === 0) {
+      violations.push({
+        id: 'no-egress-doors',
+        type: 'safety',
+        severity: 'error',
+        description: 'No egress doors found',
+        affectedObjects: [],
+        requiredAction: 'none',
+        measurement: { actual: 0, required: 1, unit: 'doors' },
+        regulation: { standard: 'IBC', reference: 'IBC Section 1006.2' }
+      });
+      return { violations, recommendations, primaryWidth: 0, secondaryWidth: 0, capacity: 0 };
+    }
+    
+    // Calculate effective egress widths
+    const egressWidths = doors.map(door => {
+      const associatedPath = pathways.find(p => 
+        Vector3.Distance(p.start, door.position) < 1.0 || 
+        Vector3.Distance(p.end, door.position) < 1.0
+      );
+      return associatedPath ? Math.min(door.dimensions.width, associatedPath.width) : door.dimensions.width;
+    });
+    
+    const primaryWidth = Math.max(...egressWidths);
+    const secondaryWidth = egressWidths.length > 1 ? 
+      Math.max(...egressWidths.filter(w => w !== primaryWidth)) : 0;
+    
+    // Check primary egress width
+    const minPrimaryWidth = this.fireSafetyRequirements.find(r => 
+      r.type === 'egress-width' && r.standard === 'IBC' && r.requirement === 1.12
+    )!;
+    
+    if (primaryWidth < minPrimaryWidth.requirement) {
+      violations.push({
+        id: 'insufficient-primary-egress',
+        type: 'safety',
+        severity: 'error',
+        description: 'Primary egress width insufficient',
+        affectedObjects: doors.map(d => d.id),
+        requiredAction: 'move',
+        measurement: { 
+          actual: primaryWidth, 
+          required: minPrimaryWidth.requirement, 
+          unit: 'meters' 
+        },
+        regulation: { standard: 'IBC', reference: 'IBC Section 1005.1' }
+      });
+    }
+    
+    // Check for secondary egress if required
+    if (occupantLoad > 49 && secondaryWidth === 0) {
+      recommendations.push('Room occupancy requires secondary egress route');
+    } else if (secondaryWidth > 0 && secondaryWidth < 0.81) {
+      violations.push({
+        id: 'insufficient-secondary-egress',
+        type: 'safety',
+        severity: 'warning',
+        description: 'Secondary egress width insufficient',
+        affectedObjects: doors.map(d => d.id),
+        requiredAction: 'move',
+        measurement: { actual: secondaryWidth, required: 0.81, unit: 'meters' },
+        regulation: { standard: 'IBC', reference: 'IBC Section 1005.1' }
+      });
+    }
+    
+    // Calculate exit capacity
+    const totalCapacity = egressWidths.reduce((sum, width) => 
+      sum + (width / 0.0076), 0 // 0.3 inches per person
+    );
+    
+    if (totalCapacity < occupantLoad) {
+      violations.push({
+        id: 'insufficient-exit-capacity',
+        type: 'safety',
+        severity: 'error',
+        description: 'Exit capacity insufficient for occupant load',
+        affectedObjects: doors.map(d => d.id),
+        requiredAction: 'move',
+        measurement: { actual: totalCapacity, required: occupantLoad, unit: 'persons' },
+        regulation: { standard: 'IBC', reference: 'IBC Section 1005.3' }
+      });
+    }
+    
+    return {
+      violations,
+      recommendations,
+      primaryWidth,
+      secondaryWidth,
+      capacity: totalCapacity
+    };
+  }
+
+  /**
+   * Validate travel distances to exits
+   */
+  private validateTravelDistances(
+    roomAnalysis: RoomAnalysisResult,
+    roomObjects: SceneObject[]
+  ): {
+    violations: PlacementConstraint[];
+    recommendations: string[];
+    maxDistance: number;
+  } {
+    const violations: PlacementConstraint[] = [];
+    const recommendations: string[] = [];
+    
+    const doors = roomAnalysis.constraints.filter(c => c.type === 'door');
+    const maxTravelDistance = this.fireSafetyRequirements.find(r => 
+      r.type === 'travel-distance'
+    )?.requirement || 76;
+    
+    let actualMaxDistance = 0;
+    
+    // Check travel distance from each corner of the room
+    for (const corner of roomAnalysis.roomGeometry.corners) {
+      const distances = doors.map(door => Vector3.Distance(corner, door.position));
+      const minDistanceToExit = Math.min(...distances);
+      actualMaxDistance = Math.max(actualMaxDistance, minDistanceToExit);
+      
+      if (minDistanceToExit > maxTravelDistance) {
+        violations.push({
+          id: `travel-distance-${corner.x}-${corner.z}`,
+          type: 'safety',
+          severity: 'error',
+          description: 'Travel distance to exit exceeds maximum',
+          affectedObjects: [],
+          position: corner,
+          requiredAction: 'move',
+          measurement: { 
+            actual: minDistanceToExit, 
+            required: maxTravelDistance, 
+            unit: 'meters' 
+          },
+          regulation: { standard: 'IBC', reference: 'IBC Section 1016.1' }
+        });
+      }
+    }
+    
+    // Check for dead-end corridors
+    const pathways = roomAnalysis.accessibilityPaths;
+    for (const path of pathways) {
+      const isDeadEnd = doors.every(door => 
+        Vector3.Distance(path.end, door.position) > 1.0 && 
+        Vector3.Distance(path.start, door.position) > 1.0
+      );
+      
+      if (isDeadEnd && path.width < 1.12) {
+        recommendations.push('Potential dead-end corridor detected - ensure adequate width');
+      }
+    }
+    
+    return {
+      violations,
+      recommendations,
+      maxDistance: actualMaxDistance
+    };
+  }
+
+  /**
+   * Validate exit separation requirements
+   */
+  private validateExitSeparation(
+    roomAnalysis: RoomAnalysisResult
+  ): {
+    violations: PlacementConstraint[];
+    recommendations: string[];
+  } {
+    const violations: PlacementConstraint[] = [];
+    const recommendations: string[] = [];
+    
+    const doors = roomAnalysis.constraints.filter(c => c.type === 'door');
+    const minSeparation = this.fireSafetyRequirements.find(r => 
+      r.type === 'separation'
+    )?.requirement || 15;
+    
+    if (doors.length >= 2) {
+      for (let i = 0; i < doors.length; i++) {
+        for (let j = i + 1; j < doors.length; j++) {
+          const distance = Vector3.Distance(doors[i].position, doors[j].position);
+          
+          if (distance < minSeparation) {
+            violations.push({
+              id: `exit-separation-${doors[i].id}-${doors[j].id}`,
+              type: 'safety',
+              severity: 'warning',
+              description: 'Insufficient separation between exits',
+              affectedObjects: [doors[i].id, doors[j].id],
+              requiredAction: 'move',
+              measurement: { actual: distance, required: minSeparation, unit: 'meters' },
+              regulation: { standard: 'IBC', reference: 'IBC Section 1007.1.1' }
+            });
+          }
+        }
+      }
+    } else if (doors.length === 1) {
+      const roomArea = roomAnalysis.roomGeometry.area;
+      const occupantLoad = Math.ceil(roomArea / 9.3);
+      
+      if (occupantLoad > 49) {
+        recommendations.push('Room size suggests need for secondary exit');
+      }
+    }
+    
+    return { violations, recommendations };
+  }
+
+  /**
    * Get objects that are inside the specified room
    */
   private getObjectsInRoom(
@@ -837,8 +1198,12 @@ export class PlacementConstraintsService {
     warnings: PlacementConstraint[]
   ): PlacementValidationResult['safety'] {
     const safetyViolations = violations.filter(v => v.type === 'safety');
-    const fireEgressViolations = safetyViolations.filter(v => v.id.includes('fire-egress'));
-    const emergencyViolations = safetyViolations.filter(v => v.id.includes('emergency'));
+    const fireEgressViolations = safetyViolations.filter(v => 
+      v.id.includes('fire-egress') || v.id.includes('egress') || v.id.includes('travel-distance')
+    );
+    const emergencyViolations = safetyViolations.filter(v => 
+      v.id.includes('emergency') || v.id.includes('access-route')
+    );
 
     return {
       fireEgress: fireEgressViolations.length === 0,

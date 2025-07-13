@@ -4,10 +4,15 @@ import { useSceneStore } from '../../state/sceneStore';
 import { spaceAnalysisService } from '../../services/spaceAnalysisService';
 import { layoutGenerationService } from '../../services/layoutGenerationService';
 import { roomAnalysisService } from '../../services/roomAnalysisService';
+import { placementConstraintsService, type FireSafetyValidationResult } from '../../services/placementConstraintsService';
+import { furnitureAssociationService } from '../../services/furnitureAssociationService';
 import { SpaceVisualizationUtils, createDefaultVisualizationOptions, createAccessibilityVisualizationOptions } from '../../visualization/spaceVisualizationUtils';
 import type { SpaceAnalysisResult } from '../../services/spaceAnalysisService';
 import type { LayoutGenerationResult } from '../../services/layoutGenerationService';
 import type { VisualizationOptions } from '../../visualization/spaceVisualizationUtils';
+import { SpaceMetricsDisplay } from '../ui/SpaceMetricsDisplay';
+import { ObjectCountDisplay, CompactCountDisplay } from '../ui/ObjectCountDisplay';
+import { ClearanceFeedbackPanel, CompactClearanceFeedback } from '../ui/ClearanceFeedbackPanel';
 
 interface SpaceOptimizationPanelProps {
   sceneAPI?: {
@@ -31,6 +36,7 @@ export const SpaceOptimizationPanel: React.FC<SpaceOptimizationPanelProps> = ({ 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<SpaceAnalysisResult | null>(null);
   const [layoutResult, setLayoutResult] = useState<LayoutGenerationResult | null>(null);
+  const [fireSafetyResult, setFireSafetyResult] = useState<FireSafetyValidationResult | null>(null);
   const [selectedFurnitureType, setSelectedFurnitureType] = useState('Desk');
   const [optimizationStrategy, setOptimizationStrategy] = useState<'maximize' | 'comfort' | 'ergonomic' | 'aesthetic'>('maximize');
   const [showVisualization, setShowVisualization] = useState(true);
@@ -102,6 +108,13 @@ export const SpaceOptimizationPanel: React.FC<SpaceOptimizationPanelProps> = ({ 
 
       const result = await spaceAnalysisService.analyzeSpace(request, sceneObjects, getMeshById);
       setAnalysisResult(result);
+
+      // Run fire safety validation
+      const roomMesh = getMeshById(roomId);
+      if (roomMesh) {
+        const fireSafety = placementConstraintsService.validateFireSafety(roomMesh, sceneObjects, roomId);
+        setFireSafetyResult(fireSafety);
+      }
 
       // Update visualization
       if (showVisualization && visualizationUtils) {
@@ -447,61 +460,55 @@ export const SpaceOptimizationPanel: React.FC<SpaceOptimizationPanelProps> = ({ 
          </button>
        </div>
 
-      {/* Analysis Results */}
+      {/* Enhanced Analysis Results */}
       {analysisResult && (
-        <div className="analysis-results">
-          <h4>📊 Analysis Results:</h4>
-          
-          {/* Optimization Summary */}
-          <div className="result-summary">
-            <div className="metric">
-              <span className="metric-label">Max Objects:</span>
-              <span className="metric-value">{analysisResult.optimization.maxObjects}</span>
-            </div>
-            <div className="metric">
-              <span className="metric-label">Space Efficiency:</span>
-              <span className="metric-value">{(analysisResult.optimization.efficiency * 100).toFixed(1)}%</span>
-            </div>
-                         <div className="metric">
-               <span className="metric-label">Room Area:</span>
-               <span className="metric-value">{analysisResult.roomAnalysis.area.toFixed(1)}m²</span>
-             </div>
-          </div>
+        <>
+          {/* Prominent Object Count Display */}
+          <ObjectCountDisplay
+            objectsPlaced={optimizedObjectCount}
+            maxObjectsPossible={analysisResult.optimization.maxObjects}
+            objectType={selectedFurnitureType}
+            roomArea={analysisResult.roomAnalysis.area}
+            efficiency={analysisResult.optimization.efficiency}
+            onClearObjects={clearOptimizedObjects}
+            optimizedObjectCount={optimizedObjectCount}
+            className="mb-4"
+          />
 
-                     {/* Room Analysis Summary */}
-           <div className="room-analysis-summary">
-             <h5>Room Analysis:</h5>
-             <div className="analysis-metrics">
-               <div className="metric-row">
-                 <span>Total Area:</span>
-                 <span>{analysisResult.roomAnalysis.area.toFixed(1)}m²</span>
-               </div>
-               <div className="metric-row">
-                 <span>Usable Area:</span>
-                 <span>{analysisResult.roomAnalysis.usableArea.toFixed(1)}m²</span>
-               </div>
-               <div className="metric-row">
-                 <span>Density:</span>
-                 <span>{analysisResult.roomAnalysis.density.toFixed(2)} objects/m²</span>
-               </div>
-             </div>
-           </div>
+          {/* Detailed Metrics and Compliance */}
+          <SpaceMetricsDisplay
+            analysisResult={analysisResult || undefined}
+            fireSafetyResult={fireSafetyResult || undefined}
+            className="mb-4"
+          />
 
-           {/* Alternative Options */}
-           {analysisResult.alternativeOptions.length > 0 && (
-             <div className="alternative-options">
-               <h5>💡 Alternative Options:</h5>
-               <div className="alternatives-list">
-                 {analysisResult.alternativeOptions.slice(0, 3).map((alt, index) => (
-                   <div key={index} className="alternative-item">
-                     <span className="alt-type">{alt.objectType}:</span>
-                     <span className="alt-count">{alt.maxCount} objects</span>
-                     <span className="alt-efficiency">({(alt.efficiency * 100).toFixed(0)}%)</span>
-                   </div>
-                 ))}
-               </div>
-             </div>
-           )}
+          {/* Clearance Feedback Panel */}
+          <ClearanceFeedbackPanel
+            onFeedbackSubmitted={(result) => {
+              addToResponseLog(`Clearance adjusted: ${result.adjustmentReason}`);
+              addToResponseLog(`Confidence: ${(result.confidence * 100).toFixed(0)}%`);
+              if (result.affectedObjects.length > 0) {
+                addToResponseLog(`${result.affectedObjects.length} nearby objects affected`);
+              }
+            }}
+            className="mb-4"
+          />
+
+          {/* Alternative Options */}
+          {analysisResult.alternativeOptions.length > 0 && (
+            <div className="alternative-options">
+              <h5>💡 Alternative Options:</h5>
+              <div className="alternatives-list">
+                {analysisResult.alternativeOptions.slice(0, 3).map((alt, index) => (
+                  <div key={index} className="alternative-item">
+                    <span className="alt-type">{alt.objectType}:</span>
+                    <span className="alt-count">{alt.maxCount} objects</span>
+                    <span className="alt-efficiency">({(alt.efficiency * 100).toFixed(0)}%)</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Warnings */}
           {analysisResult.optimization.warnings.length > 0 && (
@@ -526,7 +533,7 @@ export const SpaceOptimizationPanel: React.FC<SpaceOptimizationPanelProps> = ({ 
               </ul>
             </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Layout Results */}
