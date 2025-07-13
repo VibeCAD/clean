@@ -2558,8 +2558,7 @@ function App() {
         onSubmit={floatingChat.handleSubmit}
         isLoading={floatingChat.isLoading}
         sceneInitialized={floatingChat.sceneInitialized}
-        // Voice input props can be added later if needed
-        // voiceInputEnabled={false}
+        voiceInputEnabled={true} // Enable voice input explicitly
         // recordingState={undefined}
         // transcriptionProgress={undefined}
       />

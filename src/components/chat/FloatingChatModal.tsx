@@ -9,6 +9,8 @@ import { BorderBeam } from '@/components/magicui/border-beam';
 import { cn } from '@/lib/utils';
 import type { RecordingState } from '@/services/audioRecordingService';
 import type { TranscriptionProgress } from '@/services/speechToTextService';
+import { createAudioRecordingService } from '@/services/audioRecordingService';
+import { createSpeechToTextService } from '@/services/speechToTextService';
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 
 interface Message {
@@ -26,7 +28,7 @@ interface FloatingChatModalProps {
   onSubmit: (message: string) => void;
   isLoading: boolean;
   sceneInitialized: boolean;
-  // Voice input props
+  // Voice input props (keeping for backwards compatibility)
   voiceInputEnabled?: boolean;
   recordingState?: RecordingState;
   transcriptionProgress?: TranscriptionProgress;
@@ -44,14 +46,14 @@ export default function FloatingChatModal({
   onSubmit,
   isLoading,
   sceneInitialized,
-  voiceInputEnabled = false,
-  recordingState,
-  transcriptionProgress,
+  voiceInputEnabled = false, // Disable by default to prevent auto-initialization
+  recordingState: externalRecordingState,
+  transcriptionProgress: externalTranscriptionProgress,
   onStartVoiceRecording,
   onStopVoiceRecording,
   onToggleVoiceRecording,
   onToggleVoiceInput,
-  audioRecordingService,
+  audioRecordingService: externalAudioService,
 }: FloatingChatModalProps) {
   const [message, setMessage] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
@@ -63,7 +65,104 @@ export default function FloatingChatModal({
       timestamp: new Date(),
     }
   ]);
+  
+  // Voice input state
+  const [internalRecordingState, setInternalRecordingState] = useState<RecordingState>({
+    isRecording: false,
+    isPaused: false,
+    duration: 0,
+    hasPermission: false,
+    permissionStatus: 'unknown',
+    audioLevel: 0,
+    error: null,
+    isProcessing: false
+  });
+  const [internalTranscriptionProgress, setInternalTranscriptionProgress] = useState<TranscriptionProgress | undefined>();
+  
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const audioServiceRef = useRef<any>(null);
+  const speechServiceRef = useRef<any>(null);
+
+  // Initialize services
+  useEffect(() => {
+    if (voiceInputEnabled && !audioServiceRef.current) {
+      console.log('🎙️ Initializing voice input services...');
+      
+      // Declare timeout variables at function scope for cleanup
+      let timeoutId: NodeJS.Timeout;
+      let progressTimeoutId: NodeJS.Timeout;
+      
+      try {
+        // Use external service or create new one
+        audioServiceRef.current = externalAudioService || createAudioRecordingService();
+        
+        // Set up state change listener with debouncing to prevent render loops
+        const unsubscribe = audioServiceRef.current.onStateChange((state: RecordingState) => {
+          // Debounce state changes to prevent rapid updates
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            console.log('🔄 Recording state changed:', state);
+            setInternalRecordingState(state);
+          }, 50); // 50ms debounce
+        });
+
+        // Initialize speech service if we have an API key
+        const apiKey = process.env.VITE_OPENAI_API_KEY || localStorage.getItem('openai_api_key');
+        if (apiKey) {
+          speechServiceRef.current = createSpeechToTextService(apiKey);
+          
+          // Set up transcription progress listener with debouncing
+          speechServiceRef.current.onProgress((progress: TranscriptionProgress) => {
+            clearTimeout(progressTimeoutId);
+            progressTimeoutId = setTimeout(() => {
+              console.log('📊 Transcription progress:', progress);
+              setInternalTranscriptionProgress(progress);
+            }, 100); // 100ms debounce for progress updates
+          });
+        } else {
+          console.warn('⚠️ No OpenAI API key found for speech-to-text');
+        }
+
+        return () => {
+          clearTimeout(timeoutId);
+          clearTimeout(progressTimeoutId);
+          unsubscribe();
+          if (audioServiceRef.current) {
+            audioServiceRef.current.cleanup();
+          }
+        };
+      } catch (error) {
+        console.error('❌ Failed to initialize voice services:', error);
+        // Set error state but don't continuously retry
+        setInternalRecordingState(prev => ({ 
+          ...prev, 
+          error: 'Failed to initialize voice services',
+          hasPermission: false,
+          isProcessing: false
+        }));
+      }
+    }
+  }, [voiceInputEnabled, externalAudioService]);
+
+  // Listen for keyboard shortcut events
+  useEffect(() => {
+    const handleToggleVoiceRecording = (event: CustomEvent) => {
+      console.log('⚡ Received voice recording toggle event:', event.detail);
+      if (voiceInputEnabled && audioServiceRef.current) {
+        handleVoiceToggle();
+      }
+    };
+
+    window.addEventListener('toggleVoiceRecording', handleToggleVoiceRecording as EventListener);
+    
+    return () => {
+      window.removeEventListener('toggleVoiceRecording', handleToggleVoiceRecording as EventListener);
+    };
+  }, [voiceInputEnabled]);
+
+  // Use external state if provided, otherwise use internal state
+  const currentRecordingState = externalRecordingState || internalRecordingState;
+  const currentTranscriptionProgress = externalTranscriptionProgress || internalTranscriptionProgress;
 
   // Dock animation values - same as dock.tsx
   const mouseX = useMotionValue(Infinity);
@@ -99,6 +198,93 @@ export default function FloatingChatModal({
       onSubmit(message.trim());
       setMessage('');
     }
+  };
+
+  // Voice input handlers
+  const handleVoiceToggle = async () => {
+    console.log('🎤 Voice toggle requested');
+    
+    if (!audioServiceRef.current) {
+      console.error('❌ Audio service not available');
+      return;
+    }
+
+    // Safety check: don't allow auto-recording, only on explicit user action
+    if (!sceneInitialized) {
+      console.warn('⚠️ Scene not initialized, cannot start recording');
+      return;
+    }
+
+    try {
+      if (currentRecordingState.isRecording) {
+        console.log('🛑 Stopping recording...');
+        const result = await audioServiceRef.current.stopRecording();
+        
+        if (result && speechServiceRef.current) {
+          console.log('🎯 Processing transcription...');
+          setInternalTranscriptionProgress({
+            stage: 'preparing',
+            progress: 0.1,
+            message: 'Preparing audio for transcription...'
+          });
+
+          try {
+            const transcriptionResult = await speechServiceRef.current.transcribeAudio(result);
+            console.log('✅ Transcription completed:', transcriptionResult.text);
+            
+            // Add transcribed text to message input
+            setMessage(prev => prev + (prev ? ' ' : '') + transcriptionResult.text);
+            
+            // Focus the input
+            chatInputRef.current?.focus();
+            
+            // Clear transcription progress
+            setInternalTranscriptionProgress(undefined);
+            
+          } catch (transcriptionError) {
+            console.error('❌ Transcription failed:', transcriptionError);
+            setInternalTranscriptionProgress({
+              stage: 'error',
+              progress: 0,
+              message: 'Transcription failed'
+            });
+            
+            // Clear error after a delay
+            setTimeout(() => {
+              setInternalTranscriptionProgress(undefined);
+            }, 3000);
+          }
+        }
+      } else {
+        console.log('🎙️ Starting recording...');
+        // First request permission if not already granted
+        if (!currentRecordingState.hasPermission) {
+          console.log('🔐 Requesting microphone permission...');
+          const permissionGranted = await audioServiceRef.current.requestPermission();
+          if (!permissionGranted) {
+            console.warn('⚠️ Microphone permission denied');
+            return;
+          }
+        }
+        await audioServiceRef.current.startRecording();
+      }
+    } catch (error) {
+      console.error('❌ Voice input error:', error);
+      setInternalRecordingState(prev => ({ 
+        ...prev, 
+        error: error instanceof Error ? error.message : 'Voice input failed',
+        isProcessing: false,
+        isRecording: false
+      }));
+    }
+    
+    // Call external handlers if provided
+    if (currentRecordingState.isRecording) {
+      onStopVoiceRecording?.();
+    } else {
+      onStartVoiceRecording?.();
+    }
+    onToggleVoiceRecording?.();
   };
 
   // Handle AI response (simulate for now)
@@ -202,25 +388,25 @@ export default function FloatingChatModal({
             <MessageCircle className="w-6 h-6 text-white" />
           </ChatDockIcon>
 
-          {/* Voice Icon */}
-          {onToggleVoiceInput && (
-            <ChatDockIcon onClick={onToggleVoiceInput} mouseX={mouseX}>
-              {voiceInputEnabled ? (
-                <Mic className="w-6 h-6 text-blue-300" />
-              ) : (
-                <MicOff className="w-6 h-6 text-white/60" />
-              )}
+          {/* Voice Input Button */}
+          {voiceInputEnabled && (
+            <ChatDockIcon onClick={handleVoiceToggle} disabled={!sceneInitialized} mouseX={mouseX}>
+              <div className="relative">
+                <VoiceInputButton
+                  disabled={!sceneInitialized}
+                  recordingState={currentRecordingState}
+                  transcriptionProgress={currentTranscriptionProgress}
+                  onToggle={() => {}} // Handled by ChatDockIcon onClick
+                  onStartRecording={() => {}} // Handled by ChatDockIcon onClick
+                  onStopRecording={() => {}} // Handled by ChatDockIcon onClick
+                  size="small"
+                  variant="minimal"
+                  showAudioLevel={false}
+                  className="!w-6 !h-6 !bg-transparent !border-transparent hover:!border-transparent !shadow-none pointer-events-none"
+                />
+              </div>
             </ChatDockIcon>
           )}
-
-          {/* Send/Submit Icon */}
-          {/* <ChatDockIcon 
-            onClick={() => message.trim() && sceneInitialized && !isLoading && handleSubmit({ preventDefault: () => {} } as any)}
-            disabled={!message.trim() || isLoading || !sceneInitialized}
-            mouseX={mouseX}
-          >
-            <Send className="w-6 h-6 text-white" />
-          </ChatDockIcon> */}
 
           {/* Close/Settings Icon */}
           <ChatDockIcon onClick={() => setIsExpanded(false)} mouseX={mouseX}>
@@ -263,6 +449,16 @@ export default function FloatingChatModal({
                 <span className="text-sm text-white font-medium">
                   {sceneInitialized ? 'AI Ready' : 'Initializing...'}
                 </span>
+                {currentRecordingState.isRecording && (
+                  <span className="text-xs text-red-300 animate-pulse font-medium">
+                    Recording... {currentRecordingState.duration.toFixed(1)}s
+                  </span>
+                )}
+                {currentTranscriptionProgress && (
+                  <span className="text-xs text-blue-300 font-medium">
+                    {currentTranscriptionProgress.message}
+                  </span>
+                )}
               </div>
               <Button
                 variant="ghost"
@@ -357,18 +553,6 @@ export default function FloatingChatModal({
                   )}
                   style={{ padding: '8px 12px', minHeight: '40px' }}
                 />
-                {/* Voice Input Button */}
-                {voiceInputEnabled && onToggleVoiceRecording && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={onToggleVoiceRecording}
-                    disabled={isLoading || !sceneInitialized}
-                    className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm"
-                  >
-                    <Mic className="w-4 h-4" />
-                  </Button>
-                )}
               </div>
             </div>
 
