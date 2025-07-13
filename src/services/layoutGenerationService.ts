@@ -4,6 +4,7 @@ import { spaceOptimizer, type OptimizationResult, type OptimizationStrategy, typ
 import { furnitureDatabase, type FurnitureSpec } from '../data/furnitureDatabase';
 import { roomAnalysisService, type RoomAnalysisResult, type PlacementZone } from './roomAnalysisService';
 import { placementConstraintsService, type PlacementValidationResult } from './placementConstraintsService';
+import { furnitureAssociationService, type FurnitureAssociation } from './furnitureAssociationService';
 
 export interface LayoutTemplate {
   id: string;
@@ -299,11 +300,7 @@ export class LayoutGenerationService {
     }
 
     if (request.customRequirements?.furnitureTypes) {
-      return request.customRequirements.furnitureTypes.map(type => ({
-        type,
-        quantity: 1,
-        priority: 'required' as const
-      }));
+      return this.expandFurnitureRequirements(request.customRequirements.furnitureTypes);
     }
 
     // Default requirements based on room size
@@ -312,19 +309,64 @@ export class LayoutGenerationService {
 
     if (area >= 6) {
       requirements.push({ type: 'Desk', quantity: 1, priority: 'required' });
-      requirements.push({ type: 'Chair', quantity: 1, priority: 'required' });
+      // Desk automatically gets associated chair
     }
 
     if (area >= 12) {
       requirements.push({ type: 'Table', quantity: 1, priority: 'preferred' });
+      // Table automatically gets associated chairs
       requirements.push({ type: 'Bookcase', quantity: 1, priority: 'optional' });
     }
 
     if (area >= 20) {
       requirements.push({ type: 'Sofa', quantity: 1, priority: 'preferred' });
+      // Sofa automatically gets associated coffee table
     }
 
-    return requirements;
+    return this.expandFurnitureRequirements(requirements.map(r => r.type));
+  }
+
+  /**
+   * Expand furniture requirements using associations
+   */
+  private expandFurnitureRequirements(
+    furnitureTypes: string[]
+  ): { type: string; quantity: number; priority: 'required' | 'preferred' | 'optional' }[] {
+    const expandedRequirements: { type: string; quantity: number; priority: 'required' | 'preferred' | 'optional' }[] = [];
+    const addedTypes = new Set<string>();
+
+    for (const furnitureType of furnitureTypes) {
+      // Add primary furniture if not already added
+      if (!addedTypes.has(furnitureType)) {
+        expandedRequirements.push({
+          type: furnitureType,
+          quantity: 1,
+          priority: 'required'
+        });
+        addedTypes.add(furnitureType);
+      }
+
+      // Add associated furniture
+      const expandedList = furnitureAssociationService.expandFurnitureRequest(
+        furnitureType,
+        1,
+        'preferred' // Include required and preferred associations
+      );
+
+      for (const item of expandedList) {
+        if (item.priority === 'secondary' && !addedTypes.has(item.type)) {
+          expandedRequirements.push({
+            type: item.type,
+            quantity: item.quantity,
+            priority: 'preferred' // Convert secondary to preferred
+          });
+          addedTypes.add(item.type);
+        }
+      }
+    }
+
+    console.log(`🔗 Expanded ${furnitureTypes.length} furniture types to ${expandedRequirements.length} with associations`);
+    return expandedRequirements;
   }
 
   /**
