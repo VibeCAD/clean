@@ -281,6 +281,377 @@ export class FurnitureDatabase {
       }
     });
 
+    // Add new GLB objects
+    this.addFurniture({
+      id: 'Adjustable Desk',
+      name: 'Adjustable Height Desk',
+      type: 'Adjustable Desk',
+      category: 'desk',
+      dimensions: { width: 1.3, height: 1.1, depth: 0.65 },
+      clearanceRequirements: { front: 1.2, back: 0.3, left: 0.3, right: 0.3, access: 1.5 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, -1),
+        accessPoints: [new Vector3(0, 0, -0.8)],
+        groupingRules: ['linear', 'cluster'],
+        wallPlacement: 'optional'
+      },
+      constraints: {
+        cornerPlacement: true,
+        requiresElectricity: true,
+        requiresPlumbing: false,
+        minRoomSize: 2.8
+      },
+      metadata: {
+        description: 'Height-adjustable desk with electric controls',
+        tags: ['office', 'work', 'adjustable', 'ergonomic'],
+        estimatedCost: 500
+      }
+    });
+
+    this.addFurniture({
+      id: 'Bathtub',
+      name: 'Bathtub',
+      type: 'Bathtub',
+      category: 'other',
+      dimensions: { width: 1.7, height: 0.6, depth: 0.8 },
+      clearanceRequirements: { front: 1.0, back: 0.2, left: 0.8, right: 0.8, access: 1.2 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, 1),
+        accessPoints: [new Vector3(0, 0, 1.2)],
+        groupingRules: [],
+        wallPlacement: 'required'
+      },
+      constraints: {
+        cornerPlacement: true,
+        requiresElectricity: false,
+        requiresPlumbing: true,
+        minRoomSize: 3.0,
+        maxQuantityPerRoom: 1
+      },
+      metadata: {
+        description: 'Standard bathtub for bathroom',
+        tags: ['bathroom', 'bathing', 'plumbing'],
+        estimatedCost: 800
+      }
+    });
+
+    this.addFurniture({
+      id: 'Bed Double',
+      name: 'Double Bed',
+      type: 'Bed Double',
+      category: 'bed',
+      dimensions: { width: 1.4, height: 0.5, depth: 2.0 },
+      clearanceRequirements: { front: 0.8, back: 0.3, left: 0.6, right: 0.6, access: 1.0 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, 1),
+        accessPoints: [
+          new Vector3(0.8, 0, 0),
+          new Vector3(-0.8, 0, 0)
+        ],
+        groupingRules: ['parallel'],
+        wallPlacement: 'optional'
+      },
+      constraints: {
+        cornerPlacement: true,
+        requiresElectricity: false,
+        requiresPlumbing: false,
+        minRoomSize: 3.0,
+        maxQuantityPerRoom: 1
+      },
+      metadata: {
+        description: 'Double bed with mattress',
+        tags: ['bed', 'sleep', 'bedroom'],
+        estimatedCost: 500
+      }
+    });
+
+    this.addFurniture({
+      id: 'Clothes dryer',
+      name: 'Clothes Dryer',
+      type: 'Clothes dryer',
+      category: 'appliance',
+      dimensions: { width: 0.6, height: 0.85, depth: 0.6 },
+      clearanceRequirements: { front: 1.0, back: 0.2, left: 0.1, right: 0.1, access: 1.2 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, -1),
+        accessPoints: [new Vector3(0, 0, -0.8)],
+        groupingRules: ['linear'],
+        wallPlacement: 'optional'
+      },
+      constraints: {
+        cornerPlacement: false,
+        requiresElectricity: true,
+        requiresPlumbing: false,
+        minRoomSize: 2.0
+      },
+      metadata: {
+        description: 'Electric clothes dryer',
+        tags: ['appliance', 'laundry', 'utility'],
+        estimatedCost: 600
+      }
+    });
+
+    this.addFurniture({
+      id: 'Couch Small',
+      name: 'Small Couch',
+      type: 'Couch Small',
+      category: 'seating',
+      dimensions: { width: 1.5, height: 0.8, depth: 0.8 },
+      clearanceRequirements: { front: 1.0, back: 0.2, left: 0.3, right: 0.3, access: 1.2 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, 1),
+        accessPoints: [new Vector3(0, 0, 1.0)],
+        groupingRules: ['L-shape', 'facing'],
+        wallPlacement: 'optional'
+      },
+      constraints: {
+        cornerPlacement: true,
+        requiresElectricity: false,
+        requiresPlumbing: false,
+        minRoomSize: 2.5
+      },
+      metadata: {
+        description: 'Compact two-seat couch',
+        tags: ['seating', 'living', 'comfort'],
+        estimatedCost: 400
+      }
+    });
+
+    this.addFurniture({
+      id: 'Fan',
+      name: 'Ceiling Fan',
+      type: 'Fan',
+      category: 'other',
+      dimensions: { width: 1.2, height: 0.3, depth: 1.2 },
+      clearanceRequirements: { front: 0.5, back: 0.5, left: 0.5, right: 0.5, access: 0.8 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, 1),
+        accessPoints: [new Vector3(0, -2.5, 0)],
+        groupingRules: [],
+        wallPlacement: 'avoid'
+      },
+      constraints: {
+        cornerPlacement: false,
+        requiresElectricity: true,
+        requiresPlumbing: false,
+        minRoomSize: 2.5
+      },
+      metadata: {
+        description: 'Ceiling-mounted fan',
+        tags: ['cooling', 'ceiling', 'ventilation'],
+        estimatedCost: 150
+      }
+    });
+
+    this.addFurniture({
+      id: 'Kitchen Fridge',
+      name: 'Kitchen Refrigerator',
+      type: 'Kitchen Fridge',
+      category: 'appliance',
+      dimensions: { width: 0.7, height: 1.8, depth: 0.7 },
+      clearanceRequirements: { front: 1.0, back: 0.1, left: 0.1, right: 0.1, access: 1.2 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, -1),
+        accessPoints: [new Vector3(0, 0, -0.8)],
+        groupingRules: ['linear'],
+        wallPlacement: 'optional'
+      },
+      constraints: {
+        cornerPlacement: true,
+        requiresElectricity: true,
+        requiresPlumbing: false,
+        minRoomSize: 2.0
+      },
+      metadata: {
+        description: 'Standard kitchen refrigerator',
+        tags: ['appliance', 'kitchen', 'cooling'],
+        estimatedCost: 1200
+      }
+    });
+
+    this.addFurniture({
+      id: 'Light Desk',
+      name: 'Desk Lamp',
+      type: 'Light Desk',
+      category: 'lighting',
+      dimensions: { width: 0.2, height: 0.6, depth: 0.2 },
+      clearanceRequirements: { front: 0.3, back: 0.1, left: 0.1, right: 0.1, access: 0.5 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, 1),
+        accessPoints: [new Vector3(0, 0, 0.3)],
+        groupingRules: ['surface'],
+        wallPlacement: 'avoid'
+      },
+      constraints: {
+        cornerPlacement: false,
+        requiresElectricity: true,
+        requiresPlumbing: false,
+        minRoomSize: 1.0
+      },
+      metadata: {
+        description: 'Adjustable desk lamp',
+        tags: ['lighting', 'desk', 'task'],
+        estimatedCost: 50
+      }
+    });
+
+    this.addFurniture({
+      id: 'Light Stand',
+      name: 'Floor Lamp',
+      type: 'Light Stand',
+      category: 'lighting',
+      dimensions: { width: 0.3, height: 1.6, depth: 0.3 },
+      clearanceRequirements: { front: 0.4, back: 0.2, left: 0.2, right: 0.2, access: 0.6 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, 1),
+        accessPoints: [new Vector3(0, 0, 0.4)],
+        groupingRules: ['corner'],
+        wallPlacement: 'optional'
+      },
+      constraints: {
+        cornerPlacement: true,
+        requiresElectricity: true,
+        requiresPlumbing: false,
+        minRoomSize: 1.5
+      },
+      metadata: {
+        description: 'Standing floor lamp',
+        tags: ['lighting', 'floor', 'ambient'],
+        estimatedCost: 100
+      }
+    });
+
+    this.addFurniture({
+      id: 'Oven',
+      name: 'Kitchen Oven',
+      type: 'Oven',
+      category: 'appliance',
+      dimensions: { width: 0.6, height: 0.6, depth: 0.6 },
+      clearanceRequirements: { front: 1.2, back: 0.1, left: 0.1, right: 0.1, access: 1.5 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, -1),
+        accessPoints: [new Vector3(0, 0, -1.0)],
+        groupingRules: ['linear'],
+        wallPlacement: 'optional'
+      },
+      constraints: {
+        cornerPlacement: false,
+        requiresElectricity: true,
+        requiresPlumbing: false,
+        minRoomSize: 2.0
+      },
+      metadata: {
+        description: 'Built-in kitchen oven',
+        tags: ['appliance', 'kitchen', 'cooking'],
+        estimatedCost: 800
+      }
+    });
+
+    this.addFurniture({
+      id: 'Simple computer',
+      name: 'Desktop Computer',
+      type: 'Simple computer',
+      category: 'other',
+      dimensions: { width: 0.5, height: 0.4, depth: 0.4 },
+      clearanceRequirements: { front: 0.8, back: 0.2, left: 0.2, right: 0.2, access: 1.0 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, -1),
+        accessPoints: [new Vector3(0, 0, -0.6)],
+        groupingRules: ['surface'],
+        wallPlacement: 'avoid'
+      },
+      constraints: {
+        cornerPlacement: false,
+        requiresElectricity: true,
+        requiresPlumbing: false,
+        minRoomSize: 1.5
+      },
+      metadata: {
+        description: 'Desktop computer system',
+        tags: ['electronics', 'computer', 'office'],
+        estimatedCost: 600
+      }
+    });
+
+    this.addFurniture({
+      id: 'Toilet',
+      name: 'Toilet',
+      type: 'Toilet',
+      category: 'other',
+      dimensions: { width: 0.4, height: 0.8, depth: 0.7 },
+      clearanceRequirements: { front: 0.8, back: 0.2, left: 0.3, right: 0.3, access: 1.0 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, 1),
+        accessPoints: [new Vector3(0, 0, 0.6)],
+        groupingRules: [],
+        wallPlacement: 'required'
+      },
+      constraints: {
+        cornerPlacement: true,
+        requiresElectricity: false,
+        requiresPlumbing: true,
+        minRoomSize: 1.5,
+        maxQuantityPerRoom: 1
+      },
+      metadata: {
+        description: 'Standard toilet fixture',
+        tags: ['bathroom', 'plumbing', 'fixture'],
+        estimatedCost: 300
+      }
+    });
+
+    this.addFurniture({
+      id: 'TV',
+      name: 'Television',
+      type: 'TV',
+      category: 'other',
+      dimensions: { width: 1.2, height: 0.7, depth: 0.1 },
+      clearanceRequirements: { front: 2.0, back: 0.1, left: 0.3, right: 0.3, access: 2.5 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, -1),
+        accessPoints: [new Vector3(0, 0, -2.0)],
+        groupingRules: ['wall'],
+        wallPlacement: 'required'
+      },
+      constraints: {
+        cornerPlacement: false,
+        requiresElectricity: true,
+        requiresPlumbing: false,
+        minRoomSize: 3.0
+      },
+      metadata: {
+        description: 'Flat screen television',
+        tags: ['entertainment', 'electronics', 'display'],
+        estimatedCost: 500
+      }
+    });
+
+    this.addFurniture({
+      id: 'wooden bookshelf',
+      name: 'Wooden Bookshelf',
+      type: 'wooden bookshelf',
+      category: 'storage',
+      dimensions: { width: 0.9, height: 1.8, depth: 0.3 },
+      clearanceRequirements: { front: 0.9, back: 0.1, left: 0.1, right: 0.1, access: 1.0 },
+      usagePattern: {
+        primaryDirection: new Vector3(0, 0, -1),
+        accessPoints: [new Vector3(0, 0, -0.6)],
+        groupingRules: ['linear'],
+        wallPlacement: 'required'
+      },
+      constraints: {
+        cornerPlacement: true,
+        requiresElectricity: false,
+        requiresPlumbing: false,
+        minRoomSize: 1.5
+      },
+      metadata: {
+        description: 'Wooden bookshelf with multiple shelves',
+        tags: ['storage', 'books', 'wood', 'display'],
+        estimatedCost: 250
+      }
+    });
+
     // Add placement rules
     this.initializePlacementRules();
   }

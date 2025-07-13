@@ -109,23 +109,29 @@ export interface AIServiceResult {
     'house-roof-pitched': new Vector3(0, 0, 1),
     
     // GLB objects - common furniture orientations
-    'Chair': new Vector3(0, 0, 1), // Chairs typically face forward
-    'Desk': new Vector3(0, 0, -1), // Desks face backward (user sits on opposite side)
-    'TV': new Vector3(0, 0, -1), // TV screens face backward (toward viewer)
-    'Sofa': new Vector3(0, 0, 1), // Sofas face forward
-    'Couch Small': new Vector3(0, 0, 1),
-    'Bed Single': new Vector3(0, 0, 1), // Beds face forward (foot of bed)
+    'Adjustable Desk': new Vector3(0, 0, -1),
+    'Bathtub': new Vector3(0, 0, 1), // Bathtubs face forward
     'Bed Double': new Vector3(0, 0, 1),
-    'Table': new Vector3(0, 0, 1), // Tables are omnidirectional but we'll use +Z
-    'table': new Vector3(0, 0, 1),
-    'Simple table': new Vector3(0, 0, 1),
+    'Bed Single': new Vector3(0, 0, 1), // Beds face forward (foot of bed)
     'Bookcase': new Vector3(0, 0, -1), // Bookcases face backward (books face out)
-    'wooden bookshelf': new Vector3(0, 0, -1),
+    'Chair': new Vector3(0, 0, 1), // Chairs typically face forward
+    'Clothes dryer': new Vector3(0, 0, -1), // Dryer doors face backward
+    'Couch Small': new Vector3(0, 0, 1),
+    'Desk': new Vector3(0, 0, -1), // Desks face backward (user sits on opposite side)
+    'Fan': new Vector3(0, 0, 1), // Fans face forward
     'Kitchen Fridge': new Vector3(0, 0, -1), // Fridge doors face backward
+    'Light Desk': new Vector3(0, 0, 1), // Desk lights face forward
+    'Light Stand': new Vector3(0, 0, 1), // Standing lights face forward
     'Oven': new Vector3(0, 0, -1), // Oven doors face backward
     'Simple computer': new Vector3(0, 0, -1), // Computer screens face backward
+    'Simple table': new Vector3(0, 0, 1),
+    'Sofa': new Vector3(0, 0, 1), // Sofas face forward
     'Standing Desk': new Vector3(0, 0, -1),
-    'Adjustable Desk': new Vector3(0, 0, -1)
+    'Table': new Vector3(0, 0, 1), // Tables are omnidirectional but we'll use +Z
+    'table': new Vector3(0, 0, 1),
+    'Toilet': new Vector3(0, 0, 1), // Toilets face forward
+    'TV': new Vector3(0, 0, -1), // TV screens face backward (toward viewer)
+    'wooden bookshelf': new Vector3(0, 0, -1)
   };
 
   constructor(apiKey: string, glbObjectNames: string[] = []) {
@@ -1091,6 +1097,15 @@ GLB OBJECT EXAMPLES (PREFERRED FOR FURNITURE):
  [{"action": "create", "type": "Table", "x": 0, "y": 0, "z": 0},
   {"action": "create", "type": "Chair", "x": 2, "y": 0, "z": 0},
   {"action": "create", "type": "Bookcase", "x": -3, "y": 0, "z": 0}]
+ "Add a toilet to the bathroom":
+ [{"action": "create", "type": "Toilet", "x": 0, "y": 0, "z": 0}]
+ "Place a bathtub in the room":
+ [{"action": "create", "type": "Bathtub", "x": 2, "y": 0, "z": 0}]
+ "Add a fan to the ceiling":
+ [{"action": "create", "type": "Fan", "x": 0, "y": 3, "z": 0}]
+ "Create a kitchen with appliances":
+ [{"action": "create", "type": "Kitchen Fridge", "x": -2, "y": 0, "z": 0},
+  {"action": "create", "type": "Oven", "x": 2, "y": 0, "z": 0}]
 
 
 COMPOSITE OBJECT EXAMPLES (ONLY when GLB not available or specifically requested):
@@ -2553,14 +2568,28 @@ function extractOptimizationStrategy(prompt: string): OptimizationStrategy {
  */
 function getColorForFurnitureType(type: string): string {
   const colorMap: { [key: string]: string } = {
-    'Desk': '#8B4513',
     'Adjustable Desk': '#8B4513',
-    'Standing Desk': '#8B4513',
-    'Chair': '#4A4A4A',
-    'Table': '#CD853F',
-    'Simple table': '#CD853F',
+    'Bathtub': '#FFFFFF',
+    'Bed Double': '#8B4513',
+    'Bed Single': '#8B4513',
     'Bookcase': '#654321',
-    'Sofa': '#800080'
+    'Chair': '#4A4A4A',
+    'Clothes dryer': '#C0C0C0',
+    'Couch Small': '#800080',
+    'Desk': '#8B4513',
+    'Fan': '#C0C0C0',
+    'Kitchen Fridge': '#FFFFFF',
+    'Light Desk': '#FFD700',
+    'Light Stand': '#FFD700',
+    'Oven': '#2F2F2F',
+    'Simple computer': '#4A4A4A',
+    'Simple table': '#CD853F',
+    'Sofa': '#800080',
+    'Standing Desk': '#8B4513',
+    'Table': '#CD853F',
+    'Toilet': '#FFFFFF',
+    'TV': '#000000',
+    'wooden bookshelf': '#654321'
   };
   
   return colorMap[type] || '#808080';
