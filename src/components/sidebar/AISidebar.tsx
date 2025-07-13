@@ -464,67 +464,17 @@ export const AISidebar: React.FC<AISidebarProps> = ({
           {/* Properties Panel Component */}
           <PropertiesPanel />
 
-          {/* Keyboard Shortcuts */}
+          {/* Keyboard Shortcuts - Moved to help icon */}
           <div className="ai-control-group">
-            <label>Keyboard Shortcuts:</label>
-            <div className="keyboard-shortcuts">
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+A</span>
-                <span className="shortcut-desc">Select All</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+I</span>
-                <span className="shortcut-desc">Invert Selection</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+D</span>
-                <span className="shortcut-desc">Duplicate</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+T</span>
-                <span className="shortcut-desc">Reset Transform</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+G</span>
-                <span className="shortcut-desc">Toggle Snap to Grid</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">M</span>
-                <span className="shortcut-desc">Move Mode</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">R</span>
-                <span className="shortcut-desc">Rotate Mode</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">S</span>
-                <span className="shortcut-desc">Scale Mode</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Delete</span>
-                <span className="shortcut-desc">Delete Selected</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Esc</span>
-                <span className="shortcut-desc">Deselect All</span>
-              </div>
+            <div className="ai-prompt-moved-notice">
+              <p>⌨️ Keyboard Shortcuts are now available via the help icon (? in upper right corner)</p>
             </div>
           </div>
 
-          {/* AI Response Log */}
+          {/* AI Response Log - Moved to AI Prompt Box */}
           <div className="ai-control-group">
-            <label>AI Response Log:</label>
-            <div className="ai-response-log">
-              {responseLog.slice(-8).map((log, index) => (
-                <div key={index} className={`ai-log-entry ${log.startsWith('User:') ? 'user' : log.startsWith('AI:') ? 'ai' : 'error'}`}>
-                  {log}
-                </div>
-              ))}
-              {responseLog.length === 0 && (
-                <div className="ai-log-entry ai-log-empty">
-                  No AI responses yet. Try entering a command above.
-                </div>
-              )}
+            <div className="ai-prompt-moved-notice">
+              <p>📝 AI Response Log has been moved to the AI Prompt Box (lower left corner)</p>
             </div>
           </div>
         </div>

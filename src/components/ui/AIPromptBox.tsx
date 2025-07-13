@@ -7,6 +7,8 @@ interface AIPromptBoxProps {
   isLoading: boolean;
   isDisabled: boolean;
   placeholder?: string;
+  showResponseLog?: boolean;
+  onToggleResponseLog?: () => void;
 }
 
 export const AIPromptBox: React.FC<AIPromptBoxProps> = ({
@@ -15,7 +17,9 @@ export const AIPromptBox: React.FC<AIPromptBoxProps> = ({
   onSubmit,
   isLoading,
   isDisabled,
-  placeholder = "Try: 'move the cube to the right', 'make the cube blue', 'create a red sphere above the cube', 'apply wood texture', 'make it brick'"
+  placeholder = "Try: 'move the cube to the right', 'make the cube blue', 'create a red sphere above the cube', 'apply wood texture', 'make it brick'",
+  showResponseLog = false,
+  onToggleResponseLog
 }) => {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Check for Cmd+Enter on macOS or Ctrl+Enter on other systems
@@ -105,10 +109,36 @@ export const AIPromptBox: React.FC<AIPromptBoxProps> = ({
           marginTop: '8px'
         }}>
           <div style={{ 
-            fontSize: '12px', 
-            color: '#6b7280'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
           }}>
-            {isLoading ? 'Processing...' : 'Ctrl+Enter to submit'}
+            <div style={{ 
+              fontSize: '12px', 
+              color: '#6b7280'
+            }}>
+              {isLoading ? 'Processing...' : 'Ctrl+Enter to submit'}
+            </div>
+            {onToggleResponseLog && (
+              <button 
+                onClick={onToggleResponseLog}
+                style={{
+                  backgroundColor: showResponseLog ? '#3b82f6' : '#f3f4f6',
+                  color: showResponseLog ? 'white' : '#374151',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                📝 Log
+              </button>
+            )}
           </div>
           <button 
             onClick={onSubmit}

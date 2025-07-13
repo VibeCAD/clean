@@ -31,6 +31,7 @@ import { SelectionInfoDisplay } from './components/ui/SelectionInfoDisplay'
 import { UndoRedoIndicator } from './components/ui/UndoRedoIndicator'
 import { AIPromptBox } from './components/ui/AIPromptBox'
 import { ActionButtonsOverlay } from './components/ui/ActionButtonsOverlay'
+import { KeyboardShortcutsHelp } from './components/ui/KeyboardShortcutsHelp'
 import { MeshBuilder } from 'babylonjs'
 import { createGLBImporter } from './babylon/glbImporter'
 import { createSTLExporter } from './babylon/stlExporter'
@@ -78,6 +79,9 @@ function App() {
   // Space optimization state
   const [selectedFurnitureType, setSelectedFurnitureType] = useState('Desk')
   const [optimizationStrategy, setOptimizationStrategy] = useState<'maximize' | 'comfort' | 'ergonomic' | 'aesthetic'>('maximize')
+  
+  // AI Response Log state
+  const [showResponseLog, setShowResponseLog] = useState(false)
   
   // Use the new babylon scene hook
   const { sceneAPI, sceneInitialized } = useBabylonScene(canvasRef)
@@ -2231,6 +2235,8 @@ function App() {
             onCreateCube={() => createPrimitive('cube')}
             sceneInitialized={sceneInitialized}
           />
+          {/* Keyboard Shortcuts Help - ? icon with tooltip */}
+          <KeyboardShortcutsHelp />
           {/* Selection mode indicator for multi-select feedback */}
           <SelectionModeIndicator isVisible={sceneInitialized} />
           {/* Undo/Redo indicator and controls */}
@@ -2266,7 +2272,91 @@ function App() {
         onSubmit={handleAIPromptSubmit}
         isLoading={isLoading}
         isDisabled={!sceneInitialized}
+        showResponseLog={showResponseLog}
+        onToggleResponseLog={() => setShowResponseLog(!showResponseLog)}
       />
+      
+      {/* AI Response Log Overlay */}
+      {showResponseLog && (
+        <div style={{
+          position: 'fixed',
+          bottom: '230px',
+          left: '20px',
+          zIndex: 10002,
+          width: '500px',
+          maxHeight: '300px',
+          backgroundColor: '#ffffff',
+          border: '2px solid #3b82f6',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+          padding: '16px',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#374151'
+            }}>
+              📝 AI Response Log
+            </div>
+            <button
+              onClick={() => setShowResponseLog(false)}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                fontSize: '16px',
+                cursor: 'pointer',
+                color: '#6b7280'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+          <div style={{
+            maxHeight: '240px',
+            overflowY: 'auto',
+            padding: '8px',
+            backgroundColor: '#f9fafb',
+            borderRadius: '6px',
+            border: '1px solid #e5e7eb'
+          }}>
+            {responseLog.slice(-8).map((log, index) => (
+              <div
+                key={index}
+                style={{
+                  padding: '8px 12px',
+                  margin: '4px 0',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  lineHeight: '1.4',
+                  backgroundColor: log.startsWith('User:') ? '#e0f2fe' : log.startsWith('AI:') ? '#f0f9ff' : '#fef2f2',
+                  borderLeft: `3px solid ${log.startsWith('User:') ? '#0891b2' : log.startsWith('AI:') ? '#0284c7' : '#ef4444'}`,
+                  wordBreak: 'break-word'
+                }}
+              >
+                {log}
+              </div>
+            ))}
+            {responseLog.length === 0 && (
+              <div style={{
+                padding: '20px',
+                textAlign: 'center',
+                color: '#6b7280',
+                fontSize: '14px'
+              }}>
+                No AI responses yet. Try entering a command in the prompt box.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
