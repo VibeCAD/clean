@@ -12,10 +12,15 @@ import { createGLBImporter } from '../../babylon/glbImporter';
 import { createSTLExporter } from '../../babylon/stlExporter';
 import { spaceAnalysisService } from '../../services/spaceAnalysisService';
 import type { SpaceAnalysisResult } from '../../services/spaceAnalysisService';
+import { placementConstraintsService, type FireSafetyValidationResult } from '../../services/placementConstraintsService';
 // Add voice input imports
 import { VoiceInputButton } from '../ui/VoiceInputButton';
 import { createAudioRecordingService } from '../../services/audioRecordingService';
 import type { AudioRecordingService, AudioRecordingResult } from '../../services/audioRecordingService';
+// Import report UI components
+import { ObjectCountDisplay } from '../ui/ObjectCountDisplay';
+import { SpaceMetricsDisplay } from '../ui/SpaceMetricsDisplay';
+import { ClearanceFeedbackPanel } from '../ui/ClearanceFeedbackPanel';
 import '../ui/VoiceInputButton.css';
 
 interface AISidebarProps {
@@ -74,7 +79,6 @@ export const AISidebar: React.FC<AISidebarProps> = ({
     undo,
     redo,
     // Voice recording actions
-    setIsRecording,
     setRecordingState,
     setTranscriptionProgress,
     setVoiceInputEnabled,
@@ -82,6 +86,11 @@ export const AISidebar: React.FC<AISidebarProps> = ({
 
   const [showDescriptionPanel, setShowDescriptionPanel] = React.useState(false);
   const [sceneDescription, setSceneDescription] = React.useState('');
+  
+  // Space analysis report state
+  const [spaceAnalysisResult, setSpaceAnalysisResult] = React.useState<SpaceAnalysisResult | null>(null);
+  const [fireSafetyResult, setFireSafetyResult] = React.useState<FireSafetyValidationResult | null>(null);
+  const [showSpaceReport, setShowSpaceReport] = React.useState(false);
   
   // Voice input state
   const [audioRecordingService, setAudioRecordingService] = React.useState<AudioRecordingService | null>(null);
@@ -417,22 +426,11 @@ export const AISidebar: React.FC<AISidebarProps> = ({
     try {
       console.log('🔍 Executing space analysis command:', command);
       
+      let result: SpaceAnalysisResult;
+      
       // If the command already has analysis results, use them
       if (command.analysisResult) {
-        const result = command.analysisResult;
-        
-        // Display the results
-        addToResponseLog(`Space Analysis: ${result.optimization.maxObjects} ${result.furnitureSpec.type}(s) can fit`);
-        addToResponseLog(`Space Efficiency: ${(result.optimization.efficiency * 100).toFixed(1)}%`);
-        
-        if (result.recommendations.length > 0) {
-          addToResponseLog(`Recommendations: ${result.recommendations.join(', ')}`);
-        }
-
-        // Place objects in the scene at optimal positions
-        if (result.optimization.maxObjects > 0 && result.optimization.layouts.length > 0) {
-          placeObjectsInScene(result.optimization.layouts, result.furnitureSpec.type);
-        }
+        result = command.analysisResult;
       } else {
         // Run analysis if not already done
         const getMeshById = (id: string) => {
@@ -464,20 +462,33 @@ export const AISidebar: React.FC<AISidebarProps> = ({
           } : undefined
         };
 
-        const result = await spaceAnalysisService.analyzeSpace(request, sceneObjects, getMeshById);
-        
-        // Display results
-        addToResponseLog(`Space Analysis: ${result.optimization.maxObjects} ${result.furnitureSpec.type}(s) can fit`);
-        addToResponseLog(`Space Efficiency: ${(result.optimization.efficiency * 100).toFixed(1)}%`);
-        
-        if (result.recommendations.length > 0) {
-          addToResponseLog(`Recommendations: ${result.recommendations.join(', ')}`);
-        }
+        result = await spaceAnalysisService.analyzeSpace(request, sceneObjects, getMeshById);
+      }
+      
+      // Store the analysis result for report display
+      setSpaceAnalysisResult(result);
+      
+      // Run fire safety validation
+      const roomMesh = sceneAPI.getSceneManager()?.getMeshById(result.request.roomId);
+      if (roomMesh) {
+        const fireSafety = placementConstraintsService.validateFireSafety(roomMesh, sceneObjects, result.request.roomId);
+        setFireSafetyResult(fireSafety);
+      }
+      
+      // Show the comprehensive report
+      setShowSpaceReport(true);
+      
+      // Display basic results in log
+      addToResponseLog(`Space Analysis: ${result.optimization.maxObjects} ${result.furnitureSpec.type}(s) can fit`);
+      addToResponseLog(`Space Efficiency: ${(result.optimization.efficiency * 100).toFixed(1)}%`);
+      
+      if (result.recommendations.length > 0) {
+        addToResponseLog(`Recommendations: ${result.recommendations.join(', ')}`);
+      }
 
-        // Place objects in the scene at optimal positions
-        if (result.optimization.maxObjects > 0 && result.optimization.layouts.length > 0) {
-          placeObjectsInScene(result.optimization.layouts, result.furnitureSpec.type);
-        }
+      // Place objects in the scene at optimal positions
+      if (result.optimization.maxObjects > 0 && result.optimization.layouts.length > 0) {
+        placeObjectsInScene(result.optimization.layouts, result.furnitureSpec.type);
       }
     } catch (error) {
       console.error('Space analysis command failed:', error);
@@ -523,7 +534,20 @@ export const AISidebar: React.FC<AISidebarProps> = ({
 
       const result = await spaceAnalysisService.analyzeSpace(request, sceneObjects, getMeshById);
       
-      // Display results
+      // Store the analysis result for report display
+      setSpaceAnalysisResult(result);
+      
+      // Run fire safety validation
+      const roomMesh = getMeshById(result.request.roomId);
+      if (roomMesh) {
+        const fireSafety = placementConstraintsService.validateFireSafety(roomMesh, sceneObjects, result.request.roomId);
+        setFireSafetyResult(fireSafety);
+      }
+      
+      // Show the comprehensive report
+      setShowSpaceReport(true);
+      
+      // Display basic results in log
       addToResponseLog(`Space Optimization: ${result.optimization.maxObjects} ${result.furnitureSpec.type}(s) optimally placed`);
       addToResponseLog(`Space Efficiency: ${(result.optimization.efficiency * 100).toFixed(1)}%`);
       
@@ -607,6 +631,20 @@ export const AISidebar: React.FC<AISidebarProps> = ({
       console.error('Error placing objects in scene:', error);
       addToResponseLog(`Error: Could not place objects in scene`);
     }
+  };
+
+  // Helper function to clear all optimized objects
+  const clearOptimizedObjects = () => {
+    const optimizedObjects = sceneObjects.filter(obj => obj.id.startsWith('optimized-'));
+    optimizedObjects.forEach(obj => {
+      removeObject(obj.id);
+    });
+    addToResponseLog(`🗑️ Cleared ${optimizedObjects.length} optimized objects`);
+  };
+
+  // Helper function to get count of optimized objects
+  const getOptimizedObjectCount = () => {
+    return sceneObjects.filter(obj => obj.id.startsWith('optimized-')).length;
   };
 
   const handleImportGLB = async (file: File) => {
@@ -1166,6 +1204,93 @@ export const AISidebar: React.FC<AISidebarProps> = ({
 
           {/* Space Optimization Panel */}
           <SpaceOptimizationPanel sceneAPI={sceneAPI} />
+
+          {/* AI-Triggered Space Analysis Report */}
+          {showSpaceReport && spaceAnalysisResult && (
+            <div className="ai-control-group space-analysis-report">
+              <div className="report-header">
+                <label>📊 AI Space Analysis Report:</label>
+                <button 
+                  className="close-button"
+                  onClick={() => setShowSpaceReport(false)}
+                  title="Close report"
+                >
+                  ×
+                </button>
+              </div>
+              
+              {/* Object Count Display */}
+              <ObjectCountDisplay
+                objectsPlaced={getOptimizedObjectCount()}
+                maxObjectsPossible={spaceAnalysisResult.optimization.maxObjects}
+                objectType={spaceAnalysisResult.furnitureSpec.type}
+                roomArea={spaceAnalysisResult.roomAnalysis.area}
+                efficiency={spaceAnalysisResult.optimization.efficiency}
+                onClearObjects={clearOptimizedObjects}
+                optimizedObjectCount={getOptimizedObjectCount()}
+                className="mb-4"
+              />
+
+              {/* Detailed Metrics and Compliance */}
+              <SpaceMetricsDisplay
+                analysisResult={spaceAnalysisResult}
+                fireSafetyResult={fireSafetyResult || undefined}
+                className="mb-4"
+              />
+
+              {/* Clearance Feedback Panel */}
+              <ClearanceFeedbackPanel
+                onFeedbackSubmitted={(result) => {
+                  addToResponseLog(`Clearance adjusted: ${result.adjustmentReason}`);
+                  addToResponseLog(`Confidence: ${(result.confidence * 100).toFixed(0)}%`);
+                  if (result.affectedObjects.length > 0) {
+                    addToResponseLog(`${result.affectedObjects.length} nearby objects affected`);
+                  }
+                }}
+                className="mb-4"
+              />
+
+              {/* Alternative Options */}
+              {spaceAnalysisResult.alternativeOptions.length > 0 && (
+                <div className="alternative-options">
+                  <h5>💡 Alternative Options:</h5>
+                  <div className="alternatives-list">
+                    {spaceAnalysisResult.alternativeOptions.slice(0, 3).map((alt, index) => (
+                      <div key={index} className="alternative-item">
+                        <span className="alt-type">{alt.objectType}:</span>
+                        <span className="alt-count">{alt.maxCount} objects</span>
+                        <span className="alt-efficiency">({(alt.efficiency * 100).toFixed(0)}%)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Warnings */}
+              {spaceAnalysisResult.optimization.warnings.length > 0 && (
+                <div className="warnings">
+                  <h5>⚠️ Warnings:</h5>
+                  <ul>
+                    {spaceAnalysisResult.optimization.warnings.map((warning, index) => (
+                      <li key={index}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {spaceAnalysisResult.recommendations.length > 0 && (
+                <div className="recommendations">
+                  <h5>💡 Recommendations:</h5>
+                  <ul>
+                    {spaceAnalysisResult.recommendations.map((rec, index) => (
+                      <li key={index}>{rec}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Scene Graph Component */}
           <SceneGraph />
