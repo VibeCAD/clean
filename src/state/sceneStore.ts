@@ -17,6 +17,9 @@ import type {
     TextureAsset,
     TextureType
 } from '../types/types'
+// Add voice recording imports
+import type { RecordingState } from '../services/audioRecordingService'
+import type { TranscriptionProgress } from '../services/speechToTextService'
 import type { UndoAction } from './undoMiddleware'
 import {
     createAddObjectAction,
@@ -81,6 +84,12 @@ interface SceneState {
     
     // Text input for AI
     textInput: string
+    
+    // Voice recording state
+    isRecording: boolean
+    recordingState: RecordingState | null
+    transcriptionProgress: TranscriptionProgress | null
+    voiceInputEnabled: boolean
     
     // GLB Import state
     isImporting: boolean
@@ -174,6 +183,12 @@ interface SceneActions {
     setResponseLog: (log: string[]) => void
     setSceneInitialized: (initialized: boolean) => void
     setTextInput: (text: string) => void
+    
+    // Voice recording actions
+    setIsRecording: (recording: boolean) => void
+    setRecordingState: (state: RecordingState | null) => void
+    setTranscriptionProgress: (progress: TranscriptionProgress | null) => void
+    setVoiceInputEnabled: (enabled: boolean) => void
     
     // GLB Import actions
     startImport: () => void
@@ -307,6 +322,20 @@ export const useSceneStore = create<SceneState & SceneActions>()(
             sceneInitialized: false,
             
             textInput: '',
+            
+            // Voice recording initial state
+            isRecording: false,
+            recordingState: null,
+            transcriptionProgress: null,
+            voiceInputEnabled: (() => {
+                try {
+                    const saved = localStorage.getItem('vibecad_voice_input_enabled')
+                    return saved ? JSON.parse(saved) : true // Default to enabled
+                } catch (e) {
+                    console.warn('Failed to load voice input enabled setting from localStorage:', e)
+                    return true
+                }
+            })(),
             
             // GLB Import state
             isImporting: false,
@@ -583,6 +612,30 @@ export const useSceneStore = create<SceneState & SceneActions>()(
             setSceneInitialized: (initialized) => set({ sceneInitialized: initialized }),
             
             setTextInput: (text) => set({ textInput: text }),
+            
+            // Voice recording actions
+            setIsRecording: (recording) => set({ isRecording: recording }),
+            
+            setRecordingState: (state) => {
+                set({ recordingState: state })
+                // Update isRecording flag based on state
+                if (state) {
+                    set({ isRecording: state.isRecording })
+                }
+            },
+            
+            setTranscriptionProgress: (progress) => set({ transcriptionProgress: progress }),
+            
+            setVoiceInputEnabled: (enabled) => {
+                set({ voiceInputEnabled: enabled })
+                // Persist to localStorage
+                try {
+                    localStorage.setItem('vibecad_voice_input_enabled', JSON.stringify(enabled))
+                    console.log('🎤 Voice input enabled setting saved:', enabled)
+                } catch (e) {
+                    console.warn('Failed to save voice input enabled setting to localStorage:', e)
+                }
+            },
             
             // GLB Import actions
             startImport: () => set({ isImporting: true, importError: null }),

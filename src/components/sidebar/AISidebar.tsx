@@ -12,6 +12,11 @@ import { createGLBImporter } from '../../babylon/glbImporter';
 import { createSTLExporter } from '../../babylon/stlExporter';
 import { spaceAnalysisService } from '../../services/spaceAnalysisService';
 import type { SpaceAnalysisResult } from '../../services/spaceAnalysisService';
+// Add voice input imports
+import { VoiceInputButton } from '../ui/VoiceInputButton';
+import { createAudioRecordingService } from '../../services/audioRecordingService';
+import type { AudioRecordingService, AudioRecordingResult } from '../../services/audioRecordingService';
+import '../ui/VoiceInputButton.css';
 
 interface AISidebarProps {
   apiKey: string;
@@ -49,6 +54,11 @@ export const AISidebar: React.FC<AISidebarProps> = ({
     responseLog,
     sceneObjects,
     importError,
+    // Voice recording state
+    isRecording,
+    recordingState,
+    transcriptionProgress,
+    voiceInputEnabled,
     setSidebarCollapsed,
     setTextInput,
     setIsLoading,
@@ -63,10 +73,105 @@ export const AISidebar: React.FC<AISidebarProps> = ({
     clearImportError,
     undo,
     redo,
+    // Voice recording actions
+    setIsRecording,
+    setRecordingState,
+    setTranscriptionProgress,
+    setVoiceInputEnabled,
   } = useSceneStore();
 
   const [showDescriptionPanel, setShowDescriptionPanel] = React.useState(false);
   const [sceneDescription, setSceneDescription] = React.useState('');
+  
+  // Voice input state
+  const [audioRecordingService, setAudioRecordingService] = React.useState<AudioRecordingService | null>(null);
+
+  // Initialize audio recording service
+  React.useEffect(() => {
+    if (voiceInputEnabled && !audioRecordingService) {
+      console.log('🎤 Initializing audio recording service...');
+      
+      try {
+        const service = createAudioRecordingService();
+        
+        // Subscribe to recording state changes
+        const unsubscribe = service.onStateChange((state) => {
+          console.log('🎤 Recording state changed:', state);
+          setRecordingState(state);
+        });
+        
+        setAudioRecordingService(service);
+        console.log('✅ Audio recording service initialized');
+        
+        // Cleanup function
+        return () => {
+          console.log('🧹 Cleaning up audio recording service...');
+          unsubscribe();
+          service.cleanup();
+        };
+      } catch (error) {
+        console.error('❌ Failed to initialize audio recording service:', error);
+        addToResponseLog(`Error: Failed to initialize voice input - ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  }, [voiceInputEnabled, audioRecordingService, setRecordingState, addToResponseLog]);
+
+  // Listen for Ctrl+V keyboard shortcut to toggle voice recording
+  React.useEffect(() => {
+    const handleKeyboardToggleVoiceRecording = (event: CustomEvent) => {
+      console.log('⚡ Received voice recording toggle event from keyboard shortcut');
+      
+      if (voiceInputEnabled && audioRecordingService && sceneInitialized && !isLoading) {
+        console.log('✅ Conditions met, toggling voice recording via Ctrl+V');
+        // Use the audio recording service directly
+        if (audioRecordingService) {
+          audioRecordingService.toggleRecording()
+            .then((audioResult) => {
+              if (audioResult) {
+                // Recording was stopped, process the voice input
+                console.log('✅ Voice recording completed via keyboard, processing...');
+                addToResponseLog('🔄 Processing voice input...');
+                processVoiceInput(audioResult).catch((error) => {
+                  console.error('❌ Error processing voice input from keyboard:', error);
+                });
+              } else {
+                // Recording was started
+                addToResponseLog('🎤 Voice recording started via Ctrl+V - speak your command...');
+              }
+            })
+            .catch((error) => {
+              console.error('❌ Error toggling voice recording via keyboard:', error);
+              addToResponseLog(`Error: Voice recording failed - ${error instanceof Error ? error.message : 'Unknown error'}`);
+            });
+        }
+      } else {
+        console.log('❌ Cannot toggle voice recording - conditions not met:', {
+          voiceInputEnabled,
+          hasAudioService: !!audioRecordingService,
+          sceneInitialized,
+          isLoading
+        });
+        
+        if (!voiceInputEnabled) {
+          addToResponseLog('Voice input is disabled. Enable it using the microphone button.');
+        } else if (!sceneInitialized) {
+          addToResponseLog('Scene not initialized yet. Please wait.');
+        } else if (isLoading) {
+          addToResponseLog('Please wait for current operation to complete.');
+        } else {
+          addToResponseLog('Voice input not ready. Please try again.');
+        }
+      }
+    };
+
+    // Listen for the custom event
+    window.addEventListener('toggleVoiceRecording', handleKeyboardToggleVoiceRecording as EventListener);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('toggleVoiceRecording', handleKeyboardToggleVoiceRecording as EventListener);
+    };
+  }, [voiceInputEnabled, audioRecordingService, sceneInitialized, isLoading, addToResponseLog]);
 
   /**
    * Synchronize object positions from the actual 3D meshes to the store
@@ -591,6 +696,221 @@ export const AISidebar: React.FC<AISidebarProps> = ({
     }
   };
 
+  // Voice input handlers
+  const handleStartVoiceRecording = async () => {
+    console.log('🎤 Starting voice recording...');
+    
+    if (!audioRecordingService) {
+      console.error('❌ Audio recording service not initialized');
+      addToResponseLog('Error: Voice input not initialized');
+      return;
+    }
+
+    try {
+      await audioRecordingService.startRecording();
+      addToResponseLog('🎤 Voice recording started - speak your command...');
+    } catch (error) {
+      console.error('❌ Failed to start voice recording:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addToResponseLog(`Error: Failed to start voice recording - ${errorMessage}`);
+    }
+  };
+
+  const handleStopVoiceRecording = async () => {
+    console.log('🛑 Stopping voice recording...');
+    
+    if (!audioRecordingService) {
+      console.error('❌ Audio recording service not initialized');
+      return;
+    }
+
+    try {
+      const audioResult = await audioRecordingService.stopRecording();
+      
+      if (audioResult) {
+        console.log('✅ Voice recording completed, processing...');
+        addToResponseLog('🔄 Processing voice input...');
+        await processVoiceInput(audioResult);
+      } else {
+        console.warn('⚠️ No audio recorded');
+        addToResponseLog('Warning: No audio was recorded');
+      }
+    } catch (error) {
+      console.error('❌ Failed to stop voice recording:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addToResponseLog(`Error: Failed to stop voice recording - ${errorMessage}`);
+    }
+  };
+
+  const handleToggleVoiceRecording = async () => {
+    console.log('🔄 Toggling voice recording...');
+    
+    if (!audioRecordingService) {
+      console.error('❌ Audio recording service not initialized');
+      return;
+    }
+
+    try {
+      if (isRecording) {
+        await handleStopVoiceRecording();
+      } else {
+        await handleStartVoiceRecording();
+      }
+    } catch (error) {
+      console.error('❌ Error toggling voice recording:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addToResponseLog(`Error: Voice recording failed - ${errorMessage}`);
+    }
+  };
+
+  const processVoiceInput = async (audioResult: AudioRecordingResult) => {
+    console.log('🎙️ Processing voice input...', audioResult);
+    
+    if (!apiKey || !audioResult) {
+      console.error('❌ Missing API key or audio result');
+      addToResponseLog('Error: Cannot process voice input - missing API key or audio');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Ensure we have the most current positions from the 3D meshes
+      syncPositionsFromMeshes();
+      
+      // Give a brief moment for the store to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Get the updated scene objects
+      const currentSceneObjects = useSceneStore.getState().sceneObjects;
+      
+      // Enrich scene objects with mesh metadata for custom rooms
+      const enrichedSceneObjects = currentSceneObjects.map(obj => {
+        if (sceneAPI) {
+          const sceneManager = sceneAPI.getSceneManager();
+          const mesh = sceneManager?.getMeshById(obj.id);
+          if (mesh) {
+            // Ensure world matrix is up to date
+            mesh.computeWorldMatrix(true);
+            
+            // Force refresh of bounding info to ensure accuracy
+            mesh.refreshBoundingInfo(true);
+            
+            // Get actual bounding box dimensions
+            const boundingInfo = mesh.getBoundingInfo();
+            const worldMin = boundingInfo.boundingBox.minimumWorld;
+            const worldMax = boundingInfo.boundingBox.maximumWorld;
+            
+            // Calculate actual dimensions from world bounding box
+            const actualWidth = worldMax.x - worldMin.x;
+            const actualHeight = worldMax.y - worldMin.y;
+            const actualDepth = worldMax.z - worldMin.z;
+            
+            const enrichedObj: any = {
+              ...obj,
+              actualDimensions: {
+                width: actualWidth,
+                height: actualHeight,
+                depth: actualDepth
+              },
+              // Store the world bounding box for debugging
+              worldBounds: {
+                min: { x: worldMin.x, y: worldMin.y, z: worldMin.z },
+                max: { x: worldMax.x, y: worldMax.y, z: worldMax.z }
+              }
+            };
+            
+            // Add room-specific metadata
+            if (obj.type === 'custom-room' && mesh.metadata) {
+              enrichedObj.metadata = mesh.metadata;
+            }
+            
+            return enrichedObj;
+          }
+        }
+        return obj;
+      });
+      
+      // Get current selection
+      const { selectedObjectId: currentSelectedId, selectedObjectIds: currentSelectedIds } = useSceneStore.getState();
+      
+      // Debug: Log current scene objects before AI call
+      console.log('🔍 Current scene objects at voice AI call time:');
+      enrichedSceneObjects.forEach(obj => {
+        console.log(`  - ${obj.id} (${obj.type}): position (${obj.position.x.toFixed(2)}, ${obj.position.y.toFixed(2)}, ${obj.position.z.toFixed(2)})`);
+        if (obj.type === 'custom-room' && (obj as any).metadata?.floorPolygon) {
+          console.log(`    Floor polygon: ${(obj as any).metadata.floorPolygon.length} vertices`);
+        }
+      });
+
+      // In a real application, this list would ideally be fetched dynamically
+      // or generated at build time to avoid maintaining a static list here.
+      const glbObjectNames = [
+        'Adjustable Desk', 'Bed Double', 'Bed Single', 'Bookcase', 'Chair', 
+        'Couch Small', 'Desk', 'Simple table', 'Sofa', 'Standing Desk', 
+        'Table', 'TV', 'wooden bookshelf'
+      ];
+
+      const aiService = createAIService(apiKey, glbObjectNames);
+      
+      // Set up transcription progress callback
+      const unsubscribeProgress = aiService.onTranscriptionProgress((progress) => {
+        console.log('📊 Transcription progress:', progress);
+        setTranscriptionProgress(progress);
+      });
+
+      const result = await aiService.processVoiceInput(
+        audioResult,
+        enrichedSceneObjects,
+        currentSelectedId,
+        currentSelectedIds
+      );
+      
+      // Clean up progress callback
+      unsubscribeProgress();
+      setTranscriptionProgress(null);
+
+      console.log('🎙️ Voice input processing result:', result);
+
+      if (result.commandResult.success && result.commandResult.commands) {
+        // Log the transcribed text and AI response
+        addToResponseLog(`Voice: "${result.transcriptionResult.text}"`);
+        
+        if (result.commandResult.aiResponse) {
+          addToResponseLog(`AI: ${result.commandResult.aiResponse}`);
+        }
+        
+        // Execute all commands
+        console.log('Executing voice commands:', result.commandResult.commands);
+        result.commandResult.commands.forEach(command => executeSceneCommand(command));
+        
+        // Also put the transcribed text in the text input for user to see/edit
+        setTextInput(result.transcriptionResult.text);
+      } else {
+        // Log error
+        const errorMessage = result.commandResult.error || 'Unknown error occurred';
+        console.error('Voice AI service error:', errorMessage);
+        addToResponseLog(`Error: ${errorMessage}`);
+        
+        if (result.transcriptionResult.text) {
+          addToResponseLog(`Transcribed: "${result.transcriptionResult.text}"`);
+          // Put the transcribed text in the text input even if command failed
+          setTextInput(result.transcriptionResult.text);
+        }
+        
+        if (result.commandResult.aiResponse) {
+          addToResponseLog(`AI: ${result.commandResult.aiResponse}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing voice input:', error);
+      addToResponseLog(`Error: ${error instanceof Error ? error.message : 'Unknown voice processing error'}`);
+    } finally {
+      setIsLoading(false);
+      setTranscriptionProgress(null);
+    }
+  };
+
   const handleSubmitPrompt = async () => {
     if (!apiKey || !textInput.trim()) return;
 
@@ -774,22 +1094,48 @@ export const AISidebar: React.FC<AISidebarProps> = ({
           {/* AI Control Group */}
           <div className="ai-control-group">
             <label htmlFor="ai-prompt">Natural Language Commands:</label>
-            <textarea
-              id="ai-prompt"
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Try: 'move the cube to the right', 'make the cube blue', 'create a red sphere above the cube', 'apply wood texture', 'make it brick'"
-              className="ai-text-input"
-              disabled={isLoading || !sceneInitialized}
-            />
-            <button 
-              onClick={handleSubmitPrompt}
-              disabled={isLoading || !textInput.trim() || !sceneInitialized}
-              className="ai-submit-button"
-            >
-              {isLoading ? 'Processing...' : 'Execute AI Command'}
-            </button>
+            <div className="ai-input-container">
+              <textarea
+                id="ai-prompt"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Try: 'move the cube to the right', 'make the cube blue', 'create a red sphere above the cube', 'apply wood texture', 'make it brick'"
+                className="ai-text-input"
+                disabled={isLoading || !sceneInitialized}
+              />
+              {voiceInputEnabled && (
+                <div className="voice-input-controls">
+                  <VoiceInputButton
+                    disabled={isLoading || !sceneInitialized || !audioRecordingService}
+                    recordingState={recordingState || undefined}
+                    transcriptionProgress={transcriptionProgress || undefined}
+                    onStartRecording={handleStartVoiceRecording}
+                    onStopRecording={handleStopVoiceRecording}
+                    onToggle={handleToggleVoiceRecording}
+                    size="medium"
+                    variant="primary"
+                    showAudioLevel={true}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="ai-button-group">
+              <button 
+                onClick={handleSubmitPrompt}
+                disabled={isLoading || !textInput.trim() || !sceneInitialized}
+                className="ai-submit-button"
+              >
+                {isLoading ? 'Processing...' : 'Execute AI Command'}
+              </button>
+              <button 
+                onClick={() => setVoiceInputEnabled(!voiceInputEnabled)}
+                className={`voice-toggle-button ${voiceInputEnabled ? 'enabled' : 'disabled'}`}
+                title={voiceInputEnabled ? 'Disable voice input' : 'Enable voice input'}
+              >
+                {voiceInputEnabled ? '🎤' : '🎤'}
+              </button>
+            </div>
           </div>
 
           {/* Import GLB Control */}
@@ -868,6 +1214,10 @@ export const AISidebar: React.FC<AISidebarProps> = ({
               <div className="shortcut-item">
                 <span className="shortcut-key">Esc</span>
                 <span className="shortcut-desc">Deselect All</span>
+              </div>
+              <div className="shortcut-item">
+                <span className="shortcut-key">Ctrl+V</span>
+                <span className="shortcut-desc">Toggle Voice Input</span>
               </div>
             </div>
           </div>
