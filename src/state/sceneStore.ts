@@ -313,7 +313,7 @@ export const useSceneStore = create<SceneState & SceneActions>()(
             selectedControlPointMesh: null,
             
             activeDropdown: null,
-            sidebarCollapsed: false,
+            sidebarCollapsed: true,
             
             isLoading: false,
             apiKey: '',

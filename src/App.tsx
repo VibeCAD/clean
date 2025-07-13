@@ -1033,9 +1033,6 @@ function App() {
   const renderTopToolbar = () => (
     <div className="top-toolbar">
       <div className="toolbar-menu">
-        <div className="text-4xl font-bold text-pink-500">MOORPH</div>
-        
-
         
         {/* Transform Tools */}
         <div className="toolbar-item">
