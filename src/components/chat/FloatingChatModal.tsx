@@ -1,12 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, MessageCircle, Send, Mic, MicOff } from 'lucide-react';
+import { X, MessageCircle, Send, Mic, MicOff, Bot, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ChatInput } from '@/components/ui/chat/chat-input';
+import { ChatBubble, ChatBubbleAvatar, ChatBubbleMessage } from '@/components/ui/chat/chat-bubble';
+import { ChatMessageList } from '@/components/ui/chat/chat-message-list';
 import { VoiceInputButton } from '@/components/ui/VoiceInputButton';
 import { BorderBeam } from '@/components/magicui/border-beam';
 import { cn } from '@/lib/utils';
 import type { RecordingState } from '@/services/audioRecordingService';
 import type { TranscriptionProgress } from '@/services/speechToTextService';
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
+
+interface Message {
+  id: string;
+  content: string;
+  sender: 'user' | 'ai';
+  timestamp: Date;
+  isLoading?: boolean;
+}
 
 interface FloatingChatModalProps {
   isOpen: boolean;
@@ -44,7 +55,15 @@ export default function FloatingChatModal({
 }: FloatingChatModalProps) {
   const [message, setMessage] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      content: 'Hello! I can help you create and modify 3D objects. Try saying "create a cube" or "make it blue".',
+      sender: 'ai',
+      timestamp: new Date(),
+    }
+  ]);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Dock animation values - same as dock.tsx
   const mouseX = useMotionValue(Infinity);
@@ -52,21 +71,50 @@ export default function FloatingChatModal({
   const DEFAULT_MAGNIFICATION = 60;
   const DEFAULT_DISTANCE = 140;
 
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [message]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !isLoading && sceneInitialized) {
+      // Add user message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        content: message.trim(),
+        sender: 'user',
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Add loading AI message
+      const loadingMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: '',
+        sender: 'ai',
+        timestamp: new Date(),
+        isLoading: true,
+      };
+      
+      setMessages(prev => [...prev, loadingMessage]);
+      
+      // Submit to parent
       onSubmit(message.trim());
       setMessage('');
     }
   };
+
+  // Handle AI response (simulate for now)
+  useEffect(() => {
+    if (!isLoading && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.isLoading) {
+        // Replace loading message with actual response
+        setMessages(prev => prev.slice(0, -1).concat({
+          ...lastMessage,
+          content: 'I understand! I\'ll help you with that.',
+          isLoading: false,
+        }));
+      }
+    }
+  }, [isLoading, messages.length]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -80,6 +128,11 @@ export default function FloatingChatModal({
 
   const handleChatIconClick = () => {
     setIsExpanded(!isExpanded);
+  };
+
+  const handleQuickAction = (action: string) => {
+    setMessage(`${action.toLowerCase()} `);
+    chatInputRef.current?.focus();
   };
 
   // Chat Dock Icon Component - exact same logic as dock.tsx DockIcon
@@ -161,13 +214,13 @@ export default function FloatingChatModal({
           )}
 
           {/* Send/Submit Icon */}
-          <ChatDockIcon 
+          {/* <ChatDockIcon 
             onClick={() => message.trim() && sceneInitialized && !isLoading && handleSubmit({ preventDefault: () => {} } as any)}
             disabled={!message.trim() || isLoading || !sceneInitialized}
             mouseX={mouseX}
           >
             <Send className="w-6 h-6 text-white" />
-          </ChatDockIcon>
+          </ChatDockIcon> */}
 
           {/* Close/Settings Icon */}
           <ChatDockIcon onClick={() => setIsExpanded(false)} mouseX={mouseX}>
@@ -186,7 +239,7 @@ export default function FloatingChatModal({
 
       {/* Expanded Chat Interface */}
       {isExpanded && (
-        <div className="fixed bottom-20 right-24 z-40 w-80">
+        <div className="fixed bottom-20 right-24 z-40 w-96 h-[600px]">
           <motion.div 
             initial={{ opacity: 0, scale: 0.85, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -197,84 +250,129 @@ export default function FloatingChatModal({
               damping: 30,
               mass: 0.8,
             }}
-            className="relative supports-backdrop-blur:bg-white/10 supports-backdrop-blur:dark:bg-black/10 backdrop-blur-md border border-white/20 rounded-2xl flex flex-col gap-2 p-2"
+            className="relative h-full supports-backdrop-blur:bg-white/10 supports-backdrop-blur:dark:bg-black/10 backdrop-blur-md border border-white/20 rounded-2xl flex flex-col overflow-hidden"
           >
             
-            {/* Status Row */}
-            <div className="flex items-center justify-center gap-3 py-3 px-4 bg-white/5 rounded-xl">
-              <div className={cn(
-                "w-2 h-2 rounded-full",
-                sceneInitialized ? "bg-green-400" : "bg-red-400"
-              )} />
-              <span className="text-xs text-white font-medium">
-                {sceneInitialized ? 'AI Ready' : 'Initializing...'}
-              </span>
-              {isLoading && (
-                <span className="text-xs text-blue-300 animate-pulse">
-                  Processing...
+            {/* Chat Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  sceneInitialized ? "bg-green-400" : "bg-red-400"
+                )} />
+                <span className="text-sm text-white font-medium">
+                  {sceneInitialized ? 'AI Ready' : 'Initializing...'}
                 </span>
-              )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(false)}
+                className="text-white/80 hover:text-white hover:bg-white/10"
+              >
+                <X className="w-4 h-4" />
+              </Button>
             </div>
 
-            {/* Chat Input Container - Explicit Spacing */}
-            <div>
-              {/* Input Form Section */}
-              <div className="mt-6 mb-6 mx-8 bg-white/5 rounded-xl">
-                <form onSubmit={handleSubmit} className="p-6">
-                  <textarea
-                    ref={textareaRef}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Try: 'create cube', 'make it blue', 'move left'..."
-                    className="w-full px-4 py-4 text-sm border border-white/20 rounded-xl bg-white/10 backdrop-blur-sm text-white placeholder-white/50 focus:ring-1 focus:ring-blue-400/50 focus:border-blue-400/50 resize-none min-h-[60px] max-h-32 transition-all duration-200"
-                    disabled={isLoading || !sceneInitialized}
-                    rows={1}
-                  />
-                </form>
-              </div>
+            {/* Chat Message List */}
+            <div className="flex-1 min-h-0">
+              <ChatMessageList 
+                className="h-full !px-4 !py-3"
+                smooth={true}
+                style={{ padding: '12px 16px' }}
+              >
+                {messages.map((msg) => (
+                  <ChatBubble
+                    key={msg.id}
+                    variant={msg.sender === 'user' ? 'sent' : 'received'}
+                    className=""
+                    style={{ marginBottom: '12px' }}
+                  >
+                    <ChatBubbleAvatar
+                      src={msg.sender === 'ai' ? undefined : undefined}
+                      fallback={msg.sender === 'ai' ? '🤖' : '👤'}
+                      className="w-8 h-8"
+                    />
+                    <ChatBubbleMessage
+                      variant={msg.sender === 'user' ? 'sent' : 'received'}
+                      isLoading={msg.isLoading}
+                      className={cn(
+                        // Glassmorphism styling for messages
+                        msg.sender === 'user' 
+                          ? "bg-blue-500/20 text-white border border-blue-400/30 backdrop-blur-sm" 
+                          : "bg-white/10 text-white border border-white/20 backdrop-blur-sm",
+                        "shadow-lg"
+                      )}
+                      style={{ padding: '12px' }}
+                    >
+                      {msg.content}
+                    </ChatBubbleMessage>
+                  </ChatBubble>
+                ))}
+              </ChatMessageList>
+            </div>
 
-              {/* Quick Actions - Dock-style Icons */}
-              <div className="mx-8 flex items-center justify-center gap-3 px-4 py-4 bg-white/5 rounded-xl">
+            {/* Quick Actions */}
+            <div className="px-4 py-2 border-t border-white/10 bg-white/5" style={{ padding: '8px 16px' }}>
+              <div className="flex items-center justify-center gap-2">
                 {[
                   { label: 'Create', icon: '🔨' },
                   { label: 'Move', icon: '↔️' },
                   { label: 'Color', icon: '🎨' },
-                  { label: 'More', icon: '⚡' }
-                ].map((action, index) => (
-                  <motion.div
+                  { label: 'Delete', icon: '🗑️' }
+                ].map((action) => (
+                  <motion.button
                     key={action.label}
-                    className="flex aspect-square cursor-pointer items-center justify-center rounded-full w-[40px] h-[40px] hover:bg-white/10 transition-colors duration-200"
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    onClick={() => setMessage(`${action.label.toLowerCase()} `)}
+                    onClick={() => handleQuickAction(action.label)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-200 text-xs text-white/80 hover:text-white"
+                    style={{ padding: '4px 8px', margin: '0 2px' }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <span className="text-sm text-white" title={action.label}>
-                      {action.icon}
-                    </span>
-                  </motion.div>
+                    <span>{action.icon}</span>
+                    <span>{action.label}</span>
+                  </motion.button>
                 ))}
               </div>
-
-              {/* Voice Input Controls */}
-              {voiceInputEnabled && onStartVoiceRecording && onStopVoiceRecording && onToggleVoiceRecording && (
-                <div className="mx-8 flex items-center justify-center py-4 px-4 border-t border-white/10 bg-white/5 rounded-xl">
-                  <VoiceInputButton
-                    disabled={isLoading || !sceneInitialized || !audioRecordingService}
-                    recordingState={recordingState}
-                    transcriptionProgress={transcriptionProgress}
-                    onStartRecording={onStartVoiceRecording}
-                    onStopRecording={onStopVoiceRecording}
-                    onToggle={onToggleVoiceRecording}
-                    size="small"
-                    variant="secondary"
-                    showAudioLevel={true}
-                  />
-                </div>
-              )}
             </div>
 
-            {/* Border Beam - Dock-Card Style */}
+            {/* Chat Input Footer */}
+            <div className="p-3 border-t border-white/10 bg-white/5 rounded-b-2xl" style={{ padding: '12px' }}>
+              <div className="flex gap-2">
+                <ChatInput
+                  ref={chatInputRef}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onSubmit={handleSubmit}
+                  placeholder="Type your message..."
+                  disabled={isLoading || !sceneInitialized}
+                  sendButtonDisabled={!message.trim() || isLoading || !sceneInitialized}
+                  className={cn(
+                    "flex-1 border-white/20 bg-white/10 backdrop-blur-sm text-white placeholder:text-white/50",
+                    "focus-visible:border-blue-400/50 focus-visible:ring-blue-400/50 focus-visible:ring-1",
+                    "min-h-[40px] max-h-20 rounded-xl px-3 py-2 text-sm",
+                    "transition-all duration-200 shadow-none resize-none",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                  )}
+                  style={{ padding: '8px 12px', minHeight: '40px' }}
+                />
+                {/* Voice Input Button */}
+                {voiceInputEnabled && onToggleVoiceRecording && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={onToggleVoiceRecording}
+                    disabled={isLoading || !sceneInitialized}
+                    className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Border Beam */}
             <BorderBeam
               duration={6}
               size={60}
@@ -284,8 +382,6 @@ export default function FloatingChatModal({
           </motion.div>
         </div>
       )}
-
-
     </>
   );
 } 
