@@ -54,7 +54,7 @@ export default function FloatingChatModal({
   audioRecordingService,
 }: FloatingChatModalProps) {
   const [message, setMessage] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
