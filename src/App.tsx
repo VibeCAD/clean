@@ -30,7 +30,7 @@ import { BorderBeam } from './components/magicui/border-beam'
 import { DockCard } from './components/magicui/dock-card'
 
 // Import Lucide React icons
-import { Eye, Move, Palette, TestTubeDiagonal, WandSparkles, WandSparklesIcon, Wrench, MousePointer2, RotateCw, Scale, Sparkles, Bot, Zap, Brush, PaintBucket, Droplets, Settings, Grid3x3, Shield, Camera, Square, Globe } from 'lucide-react'
+import { Eye, Move, Palette, TestTubeDiagonal, WandSparkles, WandSparklesIcon, Wrench, MousePointer2, RotateCw, Scale, Sparkles, Bot, Zap, Brush, PaintBucket, Droplets, Settings, Grid3x3, Shield, Camera, Square, Globe, Box } from 'lucide-react'
 
 // Import the keyboard shortcuts hook
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -1027,59 +1027,7 @@ function App() {
       <div className="toolbar-menu">
         <div className="text-4xl font-bold text-pink-500">MOORPH</div>
         
-        <div className="toolbar-status">
-          <span className="status-item">
-            <span className="status-label">Mode:</span>
-            <span className={`status-value ${transformMode}`}>{transformMode.toUpperCase()}</span>
-          </span>
-          <span className="status-item">
-            <span className="status-label">Grid:</span>
-            <span className={`status-value ${snapToGrid ? 'on' : 'off'}`}>
-              {snapToGrid ? `ON (${gridSize})` : 'OFF'}
-            </span>
-          </span>
-          <span className="status-item">
-            <span className="status-label">Collision:</span>
-            <span className={`status-value ${collisionDetectionEnabled ? 'on' : 'off'}`}>
-              {collisionDetectionEnabled ? 'ON' : 'OFF'}
-            </span>
-          </span>
-          <span className="status-item">
-            <span className="status-label">Selected:</span>
-            <span className="status-value">
-              {selectedObjectId ? '1' : selectedObjectIds.length}
-            </span>
-          </span>
-          <span 
-            className="status-item"
-            title={movementEnabled 
-              ? `WASD Movement is ENABLED. Speed: ${movementSpeed.toFixed(2)} units/frame. Use WASD keys to navigate, Q/E for vertical movement, Shift to sprint.`
-              : 'WASD Movement is DISABLED. Enable in Tools menu to use keyboard navigation.'
-            }
-          >
-            <span className="status-label">Movement:</span>
-            <span className={`status-value ${movementEnabled ? 'on' : 'off'}`}>
-              {movementEnabled ? `WASD (${movementSpeed.toFixed(2)})` : 'OFF'}
-            </span>
-          </span>
-          {/* Quick test button */}
-          <button 
-            className="test-button"
-            onClick={() => createPrimitive('cube')}
-            disabled={!sceneInitialized}
-            style={{
-              marginLeft: '10px',
-              padding: '4px 8px',
-              backgroundColor: '#3498db',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            🧪 Add Test Cube
-          </button>
-        </div>
+
         
         {/* Transform Tools */}
         <div className="toolbar-item">
@@ -1481,105 +1429,7 @@ function App() {
           </div>
         </div>
 
-        {/* Edit Menu */}
-        <div className="toolbar-item">
-          <button 
-            className={`toolbar-button ${hasSelectionFlag ? 'active' : ''}`}
-            onClick={() => toggleDropdown('edit')}
-          >
-            Edit <span className="dropdown-arrow">▼</span>
-          </button>
-          <div className={`dropdown-menu ${activeDropdown === 'edit' ? 'show' : ''}`}>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Selection Mode</div>
-              <div className="dropdown-actions">
-                <button 
-                  className={`dropdown-action ${!multiSelectMode ? 'active' : ''}`}
-                  onClick={() => {
-                    setMultiSelectMode(false)
-                    setSelectedObjectIds([])
-                    setActiveDropdown(null)
-                  }}
-                >
-                  Single Select
-                </button>
-                <button 
-                  className={`dropdown-action ${multiSelectMode ? 'active' : ''}`}
-                  onClick={() => {
-                    setMultiSelectMode(true)
-                    setSelectedObjectId(null)
-                    setActiveDropdown(null)
-                  }}
-                >
-                  Multi Select
-                </button>
-              </div>
-            </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Selection Tools</div>
-              <div className="dropdown-actions">
-                <button 
-                  className="dropdown-action"
-                  onClick={selectAllObjects}
-                >
-                  Select All
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={deselectAllObjects}
-                >
-                  Deselect All
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={invertSelection}
-                >
-                  Invert Selection
-                </button>
-              </div>
-            </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Current Selection</div>
-              <SelectionInfoDisplay />
-            </div>
-            {hasSelectionFlag && (
-              <div className="dropdown-section">
-                <div className="dropdown-section-title">Actions</div>
-                <div className="dropdown-actions">
-                  <button 
-                    className="dropdown-action"
-                    onClick={duplicateSelectedObjects}
-                  >
-                    Duplicate
-                  </button>
-                  <button 
-                    className="dropdown-action"
-                    onClick={resetTransforms}
-                  >
-                    Reset Transform
-                  </button>
-                  <button 
-                    className="dropdown-action danger"
-                                      onClick={() => {
-                    const objectsToDelete = selectedObjectId ? [selectedObjectId] : selectedObjectIds
-                    
-                    objectsToDelete.forEach(id => {
-                      removeObject(id)
-                    })
-                    
-                    setSelectedObjectId(null)
-                    setSelectedObjectIds([])
-                    setActiveDropdown(null)
-                    console.log('🗑️ Deleted selected objects')
-                  }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+
 
         {/* Tools Menu */}
         <div className="toolbar-item">
@@ -1754,127 +1604,7 @@ function App() {
           </div>
         </div>
 
-        {/* Building Menu */}
-        <div className="toolbar-item">
-          <button 
-            className="toolbar-button"
-            onClick={() => toggleDropdown('building')}
-          >
-            Building <span className="dropdown-arrow">▼</span>
-          </button>
-          <div className={`dropdown-menu ${activeDropdown === 'building' ? 'show' : ''}`}>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Quick Build</div>
-              <div className="dropdown-actions">
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    createModularRoom();
-                    setTimeout(() => createHousingComponent('door', 'single'), 100);
-                  }}
-                >
-                  Room with Door
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    createModularRoom();
-                    setTimeout(() => createHousingComponent('window', 'single'), 100);
-                  }}
-                >
-                  Room with Window
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    createModularRoom();
-                    setTimeout(() => createHousingComponent('door', 'single'), 100);
-                    setTimeout(() => createHousingComponent('window', 'single'), 200);
-                  }}
-                >
-                  Complete Room
-                </button>
-              </div>
-            </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Building Tools</div>
-              <div className="dropdown-actions">
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    // Select all housing objects
-                    const housingObjects = sceneObjects.filter(obj => obj.type.startsWith('house-'));
-                    if (housingObjects.length > 0) {
-                      setSelectedObjectIds(housingObjects.map(obj => obj.id));
-                      setSelectedObjectId(null);
-                    }
-                    setActiveDropdown(null);
-                  }}
-                >
-                  Select All Housing
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    // Focus on housing objects
-                    const housingObjects = sceneObjects.filter(obj => obj.type.startsWith('house-'));
-                    if (housingObjects.length > 0) {
-                      const center = housingObjects.reduce((acc, obj) => {
-                        return acc.add(obj.position)
-                      }, new Vector3(0, 0, 0)).scale(1 / housingObjects.length);
-                      sceneAPI.focusOnPosition(center);
-                    }
-                    setActiveDropdown(null);
-                  }}
-                >
-                  Focus on Building
-                </button>
-              </div>
-            </div>
-            <div className="dropdown-section">
-              <div className="dropdown-section-title">Organization</div>
-              <div className="dropdown-actions">
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    // Organize housing objects in a grid
-                    const housingObjects = sceneObjects.filter(obj => obj.type.startsWith('house-'));
-                    housingObjects.forEach((obj, index) => {
-                      const gridSize = Math.ceil(Math.sqrt(housingObjects.length));
-                      const row = Math.floor(index / gridSize);
-                      const col = index % gridSize;
-                      const newPosition = new Vector3(col * 4, obj.position.y, row * 4);
-                      updateObject(obj.id, { position: newPosition });
-                    });
-                    setActiveDropdown(null);
-                  }}
-                >
-                  Organize Grid
-                </button>
-                <button 
-                  className="dropdown-action"
-                  onClick={() => {
-                    // Align housing objects to ground level
-                    const housingObjects = sceneObjects.filter(obj => obj.type.startsWith('house-'));
-                    housingObjects.forEach(obj => {
-                      let groundLevel = 0;
-                      if (obj.type.includes('floor')) groundLevel = 0.05;
-                      else if (obj.type.includes('wall')) groundLevel = 0.75;
-                      else if (obj.type.includes('ceiling')) groundLevel = 2.5;
-                      else if (obj.type.includes('door') || obj.type.includes('window')) groundLevel = 1;
-                      
-                      const newPosition = new Vector3(obj.position.x, groundLevel, obj.position.z);
-                      updateObject(obj.id, { position: newPosition });
-                    });
-                    setActiveDropdown(null);
-                  }}
-                >
-                  Align to Ground
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+
 
         {/* View Menu */}
         <div className="toolbar-item">
@@ -2526,6 +2256,20 @@ function App() {
             onLeaveCard={() => hideDockCard()}
           >
             <Eye className="w-6 h-6 text-white" />
+          </DockIcon>
+          <DockIcon
+            cardTitle="Create Cube"
+            cardDescription="Add a cube primitive to the scene"
+            cardContent={
+              <div className="text-xs text-white/80">
+                • Create 3D cube shape<br/>
+                • Random position placement<br/>
+                • Uses current color
+              </div>
+            }
+            onClick={() => createPrimitive('cube')}
+          >
+            <Box className="w-6 h-6 text-white" />
           </DockIcon>
           <BorderBeam duration={8} size={100} colorFrom="#ffaa40" colorTo="#9c40ff" />
         </Dock>
