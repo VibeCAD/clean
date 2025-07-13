@@ -12,12 +12,35 @@ export interface MeshCreationOptions {
 }
 
 /**
+ * Logs the dimensions of a mesh (width × height × depth) to the browser console.
+ * This helps with debugging and verifying that primitives are created with
+ * the expected sizes.
+ *
+ * @param mesh  The Babylon.js mesh whose dimensions will be logged.
+ * @param type  A string identifying the primitive type (e.g. "cube", "rectangle").
+ */
+function logMeshDimensions(mesh: Mesh, type: string): void {
+  // Ensure bounding info is up-to-date
+  mesh.computeWorldMatrix(true)
+
+  const bi = mesh.getBoundingInfo()
+  // `extendSize` is half of the full size. Multiply by 2 to get width/height/depth.
+  const size = bi.boundingBox.extendSize.multiplyByFloats(2, 2, 2)
+
+  console.log(
+    `[PrimitiveCreated] ${type} | name="${mesh.name}" | ` +
+      `dimensions: ${size.x.toFixed(3)} × ${size.y.toFixed(3)} × ${size.z.toFixed(3)}`
+  )
+}
+
+/**
  * Creates a cube mesh with the specified options
  */
 export const createCube = (scene: Scene, options: MeshCreationOptions = {}): Mesh => {
   const mesh = MeshBuilder.CreateBox(options.name || 'cube', { size: 1 }, scene);
   applyMeshOptions(mesh, options);
   attachConnectionPoints(mesh, 'cube');
+  logMeshDimensions(mesh, 'cube');
   return mesh;
 };
 
@@ -28,6 +51,7 @@ export const createSphere = (scene: Scene, options: MeshCreationOptions = {}): M
   const mesh = MeshBuilder.CreateSphere(options.name || 'sphere', { diameter: 1 }, scene);
   applyMeshOptions(mesh, options);
   attachConnectionPoints(mesh, 'sphere');
+  logMeshDimensions(mesh, 'sphere');
   return mesh;
 };
 
@@ -38,6 +62,7 @@ export const createCylinder = (scene: Scene, options: MeshCreationOptions = {}):
   const mesh = MeshBuilder.CreateCylinder(options.name || 'cylinder', { height: 1, diameter: 1 }, scene);
   applyMeshOptions(mesh, options);
   attachConnectionPoints(mesh, 'cylinder');
+  logMeshDimensions(mesh, 'cylinder');
   return mesh;
 };
 
@@ -48,6 +73,7 @@ export const createPlane = (scene: Scene, options: MeshCreationOptions = {}): Me
   const mesh = MeshBuilder.CreatePlane(options.name || 'plane', { size: 1 }, scene);
   applyMeshOptions(mesh, options);
   attachConnectionPoints(mesh, 'plane');
+  logMeshDimensions(mesh, 'plane');
   return mesh;
 };
 
@@ -58,6 +84,7 @@ export const createTorus = (scene: Scene, options: MeshCreationOptions = {}): Me
   const mesh = MeshBuilder.CreateTorus(options.name || 'torus', { diameter: 1, thickness: 0.3 }, scene);
   applyMeshOptions(mesh, options);
   attachConnectionPoints(mesh, 'torus');
+  logMeshDimensions(mesh, 'torus');
   return mesh;
 };
 
@@ -72,23 +99,25 @@ export const createCone = (scene: Scene, options: MeshCreationOptions = {}): Mes
   }, scene);
   applyMeshOptions(mesh, options);
   attachConnectionPoints(mesh, 'cone');
+  logMeshDimensions(mesh, 'cone');
   return mesh;
 };
 
 /**
  * Creates a rectangle mesh with the specified options
- * Default dimensions: 2x2x2 (same as cube)
+ * Default dimensions: 3 (width) x 1 (height) x 1 (depth)
  */
 export const createRectangle = (scene: Scene, options: MeshCreationOptions = {}): Mesh => {
   // Create a box with 2x2x2 dimensions (same as cube)
   const mesh = MeshBuilder.CreateBox(options.name || 'rectangle', { 
-    width: 2,  // Same as cube width
-    height: 2, // Same as cube height
-    depth: 2   // Same as cube depth
+    width: 3,  // Rectangle width
+    height: 1, // Rectangle height
+    depth: 1   // Rectangle depth
   }, scene);
   
   applyMeshOptions(mesh, options);
   attachConnectionPoints(mesh, 'rectangle');
+  logMeshDimensions(mesh, 'rectangle');
   return mesh;
 };
 
@@ -235,9 +264,10 @@ const attachConnectionPoints = (mesh: Mesh, type: PrimitiveType): void => {
       break;
     }
     case 'rectangle': {
-      const halfX = 1.0 * mesh.scaling.x;  // 2/2
-      const halfY = 1.0 * mesh.scaling.y;  // 2/2
-      const halfZ = 1.0 * mesh.scaling.z;  // 2/2
+      // Half-dimensions correspond to the default 3x1x1 rectangle
+      const halfX = 1.5 * mesh.scaling.x;  // 3 / 2
+      const halfY = 0.5 * mesh.scaling.y;  // 1 / 2
+      const halfZ = 0.5 * mesh.scaling.z;  // 1 / 2
 
       connectionPoints = [
         { id: 'px', position: new Vector3(halfX, 0, 0), normal: new Vector3(1, 0, 0) },

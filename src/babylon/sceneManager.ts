@@ -18,6 +18,7 @@ import {
 } from 'babylonjs'
 import type { SceneObject, PrimitiveType, TransformMode, ConnectionPoint, TextureAsset, TextureType } from '../types/types'
 import { createHousingMesh } from './housingFactory'
+import { createRectangle } from './objectFactory'
 import { TextureManager } from './textureManager'
 import { createFullGridTexture, calculateFullGridUVScale } from './gridTextureUtils'
 import { MovementController } from './movementController'
@@ -324,11 +325,11 @@ export class SceneManager {
             mesh = MeshBuilder.CreateCylinder(sceneObject.id, { diameterTop: 0, diameterBottom: 2, height: 2 }, this.scene)
             break
           case 'rectangle':
-            mesh = MeshBuilder.CreateBox(sceneObject.id, { 
-              width: 2, 
-              height: 2, 
-              depth: 2 
-            }, this.scene)
+            // Use central factory to create a 3×1×1 rectangle and auto-log its dimensions
+            mesh = createRectangle(this.scene, {
+              name: sceneObject.id,
+              color: sceneObject.color
+            })
             break
           case 'ground': {
             const groundMesh = this.meshMap.get('ground');
