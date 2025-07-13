@@ -5,6 +5,10 @@ import { spaceAnalysisService } from '../services/spaceAnalysisService';
 import type { SpaceAnalysisRequest, SpaceAnalysisResult } from '../services/spaceAnalysisService';
 import { furnitureDatabase } from '../data/furnitureDatabase';
 import type { FurnitureSpec } from '../data/furnitureDatabase';
+// Add speech-to-text imports
+import { createSpeechToTextService } from '../services/speechToTextService';
+import type { SpeechToTextService, TranscriptionResult, TranscriptionProgress } from '../services/speechToTextService';
+import type { AudioRecordingResult } from '../services/audioRecordingService';
 
 // Extend SceneObject to include metadata for this service's use
 type SceneObject = BabylonSceneObject & {
@@ -65,6 +69,9 @@ export interface AIServiceResult {
     private availableTextures: Array<{ id: string; name: string; tags: string[] }> = [];
     private availableGlbObjects: string[] = [];
     private getMeshById: ((id: string) => any) | null = null;
+    // Add speech-to-text service
+    private speechToTextService: SpeechToTextService;
+    private transcriptionProgressCallbacks: ((progress: TranscriptionProgress) => void)[] = [];
 
   // Default front face directions for different object types
   private defaultFrontFaces: { [key: string]: Vector3 } = {
@@ -124,6 +131,10 @@ export interface AIServiceResult {
     });
     
     this.availableGlbObjects = glbObjectNames;
+
+    // Initialize speech-to-text service
+    this.speechToTextService = createSpeechToTextService(apiKey);
+    console.log('🤖 Speech-to-text service initialized in AIService');
 
     // Initialize available textures
     this.availableTextures = [
@@ -2153,10 +2164,181 @@ Object IDs currently in scene: ${objectIds.join(', ')}`;
   }
 
   /**
+   * Transcribe audio to text using OpenAI Whisper
+   */
+  public async transcribeAudio(audioResult: AudioRecordingResult): Promise<TranscriptionResult> {
+    console.log('🎯 Starting audio transcription in AIService...');
+    
+    try {
+      // Set up progress callback forwarding
+      const unsubscribe = this.speechToTextService.onProgress((progress) => {
+        console.log('📊 Transcription progress:', progress);
+        this.notifyTranscriptionProgress(progress);
+      });
+
+      const result = await this.speechToTextService.transcribeAudio(audioResult);
+      
+      console.log('✅ Audio transcription completed successfully');
+      console.log('📝 Transcribed text:', result.text);
+      
+      // Clean up progress callback
+      unsubscribe();
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Audio transcription failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process voice input: transcribe audio and then process as text command
+   */
+  public async processVoiceInput(
+    audioResult: AudioRecordingResult,
+    sceneObjects: SceneObject[],
+    selectedObjectId?: string | null,
+    selectedObjectIds?: string[]
+  ): Promise<{
+    transcriptionResult: TranscriptionResult;
+    commandResult: AIServiceResult;
+  }> {
+    console.log('🎙️ Processing voice input...');
+    
+    try {
+      // Step 1: Transcribe audio to text
+      const transcriptionResult = await this.transcribeAudio(audioResult);
+      
+      if (!transcriptionResult.text.trim()) {
+        console.warn('⚠️ No text transcribed from audio');
+        return {
+          transcriptionResult,
+          commandResult: {
+            success: false,
+            error: 'No text was transcribed from the audio',
+            userPrompt: '',
+            aiResponse: 'I couldn\'t hear any speech in the audio. Please try again.'
+          }
+        };
+      }
+
+      console.log('📝 Transcribed text:', transcriptionResult.text);
+
+      // Step 2: Process the transcribed text as a normal command
+      const commandResult = await this.getSceneCommands(
+        transcriptionResult.text,
+        sceneObjects,
+        selectedObjectId,
+        selectedObjectIds
+      );
+
+      // Add transcription info to the result
+      if (commandResult.success) {
+        console.log('✅ Voice input processed successfully');
+        commandResult.aiResponse = `[Voice: "${transcriptionResult.text}"] ${commandResult.aiResponse || ''}`;
+      } else {
+        console.log('❌ Voice input command processing failed');
+      }
+
+      return {
+        transcriptionResult,
+        commandResult
+      };
+    } catch (error) {
+      console.error('❌ Voice input processing failed:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Voice input processing failed';
+      
+      return {
+        transcriptionResult: {
+          text: '',
+          duration: audioResult.duration,
+          processingTime: 0,
+          model: 'whisper-1',
+          audioSize: audioResult.size,
+          timestamp: new Date()
+        },
+        commandResult: {
+          success: false,
+          error: errorMessage,
+          userPrompt: '',
+          aiResponse: `Voice input failed: ${errorMessage}`
+        }
+      };
+    }
+  }
+
+  /**
+   * Subscribe to transcription progress updates
+   */
+  public onTranscriptionProgress(callback: (progress: TranscriptionProgress) => void): () => void {
+    this.transcriptionProgressCallbacks.push(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      const index = this.transcriptionProgressCallbacks.indexOf(callback);
+      if (index > -1) {
+        this.transcriptionProgressCallbacks.splice(index, 1);
+      }
+    };
+  }
+
+  /**
+   * Notify all subscribers of transcription progress
+   */
+  private notifyTranscriptionProgress(progress: TranscriptionProgress): void {
+    this.transcriptionProgressCallbacks.forEach(callback => {
+      try {
+        callback(progress);
+      } catch (error) {
+        console.error('❌ Error in transcription progress callback:', error);
+      }
+    });
+  }
+
+  /**
+   * Get the speech-to-text service instance
+   */
+  public getSpeechToTextService(): SpeechToTextService {
+    return this.speechToTextService;
+  }
+
+  /**
+   * Test the speech-to-text service connection
+   */
+  public async testSpeechToTextConnection(): Promise<boolean> {
+    console.log('🔍 Testing speech-to-text service connection...');
+    
+    try {
+      const result = await this.speechToTextService.testConnection();
+      console.log('🔍 Speech-to-text service connection test result:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Speech-to-text service connection test failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get supported languages for speech-to-text
+   */
+  public getSupportedLanguages(): string[] {
+    return this.speechToTextService.getSupportedLanguages();
+  }
+
+  /**
+   * Update speech-to-text configuration
+   */
+  public updateSpeechToTextConfig(config: any): void {
+    console.log('⚙️ Updating speech-to-text configuration:', config);
+    this.speechToTextService.updateConfig(config);
+  }
+
+  /**
    * Validate if the service is properly initialized
    */
   public isReady(): boolean {
-    return !!this.openai;
+    return !!this.openai && !!this.speechToTextService;
   }
 }
 

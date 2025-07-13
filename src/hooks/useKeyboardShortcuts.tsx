@@ -10,6 +10,9 @@ export const useKeyboardShortcuts = () => {
     activeDropdown,
     sceneObjects,
     objectLocked,
+    // Voice recording state
+    isRecording,
+    voiceInputEnabled,
     
     // Actions
     setSnapToGrid,
@@ -23,7 +26,9 @@ export const useKeyboardShortcuts = () => {
     undo,
     redo,
     canUndo,
-    canRedo
+    canRedo,
+    // Voice recording actions
+    setVoiceInputEnabled
   } = useSceneStore()
 
   useEffect(() => {
@@ -138,6 +143,22 @@ export const useKeyboardShortcuts = () => {
           }
           break
 
+        case 'v':
+          if (isCtrlOrCmd) {
+            event.preventDefault()
+            if (voiceInputEnabled) {
+              console.log('⚡ Keyboard: Ctrl+V - Voice input toggle requested')
+              // Dispatch a custom event to trigger voice recording
+              const toggleEvent = new CustomEvent('toggleVoiceRecording', {
+                detail: { isRecording, voiceInputEnabled }
+              });
+              window.dispatchEvent(toggleEvent);
+            } else {
+              console.log('⚡ Keyboard: Ctrl+V - Voice input is disabled')
+            }
+          }
+          break
+
         case 'escape':
           event.preventDefault()
           clearSelection()
@@ -163,6 +184,9 @@ export const useKeyboardShortcuts = () => {
     selectedObjectId,
     selectedObjectIds,
     activeDropdown,
+    sceneObjects,
+    isRecording,
+    voiceInputEnabled,
     setSnapToGrid,
     setTransformMode,
     clearSelection,
@@ -174,7 +198,8 @@ export const useKeyboardShortcuts = () => {
     undo,
     redo,
     canUndo,
-    canRedo
+    canRedo,
+    setVoiceInputEnabled
   ])
 
   // This hook doesn't return anything, it just sets up the event listeners
