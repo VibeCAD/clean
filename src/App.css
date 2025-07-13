@@ -60,12 +60,65 @@ body {
   position: relative;
 }
 
+/* Toolbar Toggle Button */
+.toolbar-toggle-container {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px;
+  background: #34495e;
+  border-bottom: 1px solid #2c3e50;
+}
+
+.toolbar-toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toolbar-toggle-button:hover {
+  background: #2980b9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-icon {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.toggle-text {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
 .toolbar-menu {
   display: flex;
   height: 48px;
   align-items: center;
   padding: 0 15px;
   gap: 0;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .toolbar-brand {

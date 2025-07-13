@@ -43,7 +43,7 @@ import type { SceneObject, PrimitiveType, TransformMode, ControlPointVisualizati
 import { CustomRoomModal } from './components/modals/CustomRoomModal'
 import { SelectionModeIndicator } from './components/ui/SelectionModeIndicator'
 import { SelectionInfoDisplay } from './components/ui/SelectionInfoDisplay'
-import { UndoRedoIndicator } from './components/ui/UndoRedoIndicator'
+// import { UndoRedoIndicator } from './components/ui/UndoRedoIndicator'
 import { MeshBuilder } from 'babylonjs'
 import FloatingChatModal from './components/chat/FloatingChatModal'
 import { useFloatingChat } from './hooks/useFloatingChat'
@@ -125,14 +125,6 @@ function App() {
       loadDefaults();
     }
   }, [sceneInitialized]);
-
-  // Sync voice input enabled state with FloatingChatModal on app start
-  useEffect(() => {
-    // Ensure scene store voice input is enabled since FloatingChatModal has voiceInputEnabled={true}
-    const { setVoiceInputEnabled } = useSceneStore.getState();
-    setVoiceInputEnabled(true);
-    console.log('🎤 Synced voice input enabled state to true');
-  }, []);
 
   // --- START: Reading state from the Zustand store ---
   const {
@@ -749,6 +741,14 @@ function App() {
         gridSize: roomData.gridSize || 20,
         worldScale: SCALE,
         drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
+      },
+      metadata: {
+        floorPolygon: vertices2D.map(v => ({ x: v.x, z: v.y })),
+        gridInfo: {
+          gridSize: roomData.gridSize || 20,
+          worldScale: SCALE,
+          drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
+        }
       }
     }
 
@@ -1434,8 +1434,6 @@ function App() {
           </div>
         </div>
 
-
-
         {/* Tools Menu */}
         <div className="toolbar-item">
           <button 
@@ -1609,8 +1607,6 @@ function App() {
           </div>
         </div>
 
-
-
         {/* View Menu */}
         <div className="toolbar-item">
           <button 
@@ -1706,8 +1702,6 @@ function App() {
       </div>
     </div>
   )
-
-
 
   // AI logic is now handled by the AI service in the AISidebar component
 
@@ -2060,35 +2054,6 @@ function App() {
     isLoading,
     sceneInitialized
   })
-  /*
-  const clearAllObjects = () => {
-    // Detach gizmo first
-    if (gizmoManagerRef.current) {
-      gizmoManagerRef.current.attachToMesh(null)
-    }
-
-    setSceneObjects(prev => {
-      const objectsToDelete = prev.filter(obj => obj.type !== 'ground')
-      console.log('🧹 Clearing all objects:', objectsToDelete.map(obj => obj.id))
-      
-      // Dispose all meshes
-      objectsToDelete.forEach(obj => {
-        if (obj.mesh) {
-          obj.mesh.dispose()
-        }
-      })
-      
-      // Keep only the ground
-      const remainingObjects = prev.filter(obj => obj.type === 'ground')
-      return remainingObjects
-    })
-    setSelectedObjectId(null)
-    console.log('✅ All objects cleared')
-  }
-  */
-
-  // Scene initialization is now handled by the useBabylonScene hook
-  // No need for manual cleanup since the hook handles it
 
   if (showApiKeyInput) {
     console.log('🔐 App.tsx: Rendering API key input form')
@@ -2261,20 +2226,6 @@ function App() {
             onLeaveCard={() => hideDockCard()}
           >
             <Eye className="w-6 h-6 text-white" />
-          </DockIcon>
-          <DockIcon
-            cardTitle="Create Cube"
-            cardDescription="Add a cube primitive to the scene"
-            cardContent={
-              <div className="text-xs text-white/80">
-                • Create 3D cube shape<br/>
-                • Random position placement<br/>
-                • Uses current color
-              </div>
-            }
-            onClick={() => createPrimitive('cube')}
-          >
-            <Box className="w-6 h-6 text-white" />
           </DockIcon>
           <BorderBeam duration={8} size={100} colorFrom="#ffaa40" colorTo="#9c40ff" />
         </Dock>

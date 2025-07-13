@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, MessageCircle, Send, Mic, MicOff, Bot, User } from 'lucide-react';
+import { X, MessageCircle, Send, Mic, MicOff, Bot, User, Plus, Move, Palette, Trash2, PenTool } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatInput } from '@/components/ui/chat/chat-input';
 import { ChatBubble, ChatBubbleAvatar, ChatBubbleMessage } from '@/components/ui/chat/chat-bubble';
 import { ChatMessageList } from '@/components/ui/chat/chat-message-list';
 import { VoiceInputButton } from '@/components/ui/VoiceInputButton';
 import { BorderBeam } from '@/components/magicui/border-beam';
+import { Marquee } from '@/components/magicui/marquee';
 import { cn } from '@/lib/utils';
 import type { RecordingState } from '@/services/audioRecordingService';
 import type { TranscriptionProgress } from '@/services/speechToTextService';
@@ -472,12 +473,15 @@ export default function FloatingChatModal({
           >
             
             {/* Chat Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 rounded-t-2xl">
+                        <div className="flex items-center justify-between pl-4 py-4 border-b border-white/10 bg-white/5 rounded-t-2xl" style={{ paddingRight: '8px' }}>
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  sceneInitialized ? "bg-green-400" : "bg-red-400"
-                )} />
+                <div 
+                  className={cn(
+                    "w-2 h-2 rounded-full",
+                    sceneInitialized ? "bg-green-400" : "bg-red-400"
+                  )} 
+                  style={{ marginLeft: '16px' }}
+                />
                 <span className="text-sm text-white font-medium">
                   {sceneInitialized ? 'AI Ready' : 'Initializing...'}
                 </span>
@@ -492,7 +496,8 @@ export default function FloatingChatModal({
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsExpanded(false)}
-                className="text-white/80 hover:text-white hover:bg-white/10"
+                className="text-white/80 hover:text-white hover:bg-white/10 !px-4 !py-2"
+                style={{ transform: 'translateX(-8px)' }}
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -537,27 +542,27 @@ export default function FloatingChatModal({
             </div>
 
             {/* Quick Actions */}
-            <div className="px-4 py-2 border-t border-white/10 bg-white/5" style={{ padding: '8px 16px' }}>
-              <div className="flex items-center justify-center gap-2">
+            <div className="px-4 py-2 border-t border-black/10">
+              <Marquee className="[--duration:20s]" pauseOnHover={true}>
                 {[
-                  { label: 'Create', icon: '🔨' },
-                  { label: 'Move', icon: '↔️' },
-                  { label: 'Color', icon: '🎨' },
-                  { label: 'Delete', icon: '🗑️' }
+                  { label: 'Create', icon: Plus },
+                  { label: 'Move', icon: Move },
+                  { label: 'Color', icon: Palette },
+                  { label: 'Delete', icon: Trash2 },
+                  { label: 'Draw Room Panel', icon: PenTool }
                 ].map((action) => (
                   <motion.button
                     key={action.label}
                     onClick={() => handleQuickAction(action.label)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-200 text-xs text-white/80 hover:text-white"
-                    style={{ padding: '4px 8px', margin: '0 2px' }}
+                    className="flex items-center gap-1 px-2 py-1 mx-0.5 rounded-full !bg-black/10 hover:!bg-white/20 transition-colors duration-200 text-xs text-white/80 hover:text-white"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <span>{action.icon}</span>
+                    <action.icon size={12} />
                     <span>{action.label}</span>
                   </motion.button>
                 ))}
-              </div>
+              </Marquee>
             </div>
 
             {/* Chat Input Footer */}

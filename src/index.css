@@ -72,7 +72,7 @@ h1 {
   line-height: 1.1;
 }
 
-button {
+button:not([data-slot="button"]) {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
@@ -83,11 +83,11 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
-button:hover {
+button:not([data-slot="button"]):hover {
   border-color: #646cff;
 }
-button:focus,
-button:focus-visible {
+button:not([data-slot="button"]):focus,
+button:not([data-slot="button"]):focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
@@ -99,7 +99,7 @@ button:focus-visible {
   a:hover {
     color: #747bff;
   }
-  button {
+  button:not([data-slot="button"]) {
     background-color: #f9f9f9;
   }
 }
@@ -182,5 +182,26 @@ button:focus-visible {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Marquee animations */
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-100%); }
+  }
+  
+  @keyframes marquee-vertical {
+    0% { transform: translateY(0%); }
+    100% { transform: translateY(-100%); }
+  }
+  
+  .animate-marquee {
+    animation: marquee var(--duration) linear infinite;
+  }
+  
+  .animate-marquee-vertical {
+    animation: marquee-vertical var(--duration) linear infinite;
   }
 }
