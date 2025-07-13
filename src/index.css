@@ -66,3 +66,21 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Radix UI Tooltip Styles */
+[data-radix-tooltip-content] {
+  z-index: 9999 !important;
+  background-color: white !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  font-size: 12px !important;
+  color: #1f2937 !important;
+  max-width: 300px !important;
+}
+
+[data-radix-tooltip-arrow] {
+  fill: white !important;
+  z-index: 9999 !important;
+}

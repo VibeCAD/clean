@@ -1173,57 +1173,6 @@ export const AISidebar: React.FC<AISidebarProps> = ({
           {/* Properties Panel Component */}
           <PropertiesPanel />
 
-          {/* Keyboard Shortcuts */}
-          <div className="ai-control-group">
-            <label>Keyboard Shortcuts:</label>
-            <div className="keyboard-shortcuts">
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+A</span>
-                <span className="shortcut-desc">Select All</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+I</span>
-                <span className="shortcut-desc">Invert Selection</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+D</span>
-                <span className="shortcut-desc">Duplicate</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+T</span>
-                <span className="shortcut-desc">Reset Transform</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+G</span>
-                <span className="shortcut-desc">Toggle Snap to Grid</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">M</span>
-                <span className="shortcut-desc">Move Mode</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">R</span>
-                <span className="shortcut-desc">Rotate Mode</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">S</span>
-                <span className="shortcut-desc">Scale Mode</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Delete</span>
-                <span className="shortcut-desc">Delete Selected</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Esc</span>
-                <span className="shortcut-desc">Deselect All</span>
-              </div>
-              <div className="shortcut-item">
-                <span className="shortcut-key">Ctrl+V</span>
-                <span className="shortcut-desc">Toggle Voice Input</span>
-              </div>
-            </div>
-          </div>
-
           {/* AI Response Log */}
           <div className="ai-control-group">
             <label>AI Response Log:</label>

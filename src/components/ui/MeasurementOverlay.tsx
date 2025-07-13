@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { Scene, Vector3, PointerEventTypes, MeshBuilder, StandardMaterial, Color3, Mesh } from 'babylonjs'
 import { useSceneStore } from '../../state/sceneStore'
 import { worldToGrid } from '../../babylon/gridTextureUtils'
+import { KeyboardShortcutsTooltip } from './KeyboardShortcutsTooltip'
 import './MeasurementOverlay.css'
 
 interface MeasurementOverlayProps {
@@ -235,6 +236,8 @@ export const MeasurementOverlay: React.FC<MeasurementOverlayProps> = ({ scene })
         >
           📏 {measurementMode ? 'Exit Measure' : 'Measure'}
         </button>
+        
+        <KeyboardShortcutsTooltip />
         
         {measurementMode && measureStart && (
           <button 
