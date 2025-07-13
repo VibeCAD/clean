@@ -31,6 +31,7 @@ import { SelectionInfoDisplay } from './components/ui/SelectionInfoDisplay'
 import { UndoRedoIndicator } from './components/ui/UndoRedoIndicator'
 import { AIPromptBox } from './components/ui/AIPromptBox'
 import { ActionButtonsOverlay } from './components/ui/ActionButtonsOverlay'
+import { Dock, DockIcon } from './components/magicui/dock'
 import { MeshBuilder } from 'babylonjs'
 import { createGLBImporter } from './babylon/glbImporter'
 import { createSTLExporter } from './babylon/stlExporter'
@@ -711,14 +712,6 @@ function App() {
         gridSize: roomData.gridSize || 20,
         worldScale: SCALE,
         drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
-      },
-      metadata: {
-        floorPolygon: vertices2D.map(v => ({ x: v.x, z: v.y })),
-        gridInfo: {
-          gridSize: roomData.gridSize || 20,
-          worldScale: SCALE,
-          drawingBounds: roomData.drawingBounds || { width: 400, height: 400 }
-        }
       }
     }
 
@@ -1003,7 +996,7 @@ function App() {
   const renderTopToolbar = () => (
     <div className="top-toolbar">
       <div className="toolbar-menu">
-        <div className="toolbar-brand">VibeCad Pro</div>
+        <div className="text-2xl font-bold text-blue">MOORPH</div>
         
 
         
@@ -2267,6 +2260,30 @@ function App() {
         isLoading={isLoading}
         isDisabled={!sceneInitialized}
       />
+      
+      {/* Test Dock Component */}
+      <div className="fixed bottom-5 left-1/2 transform -translate-x-1/2 z-[1000]">
+        <Dock direction="middle">
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">🏠</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">🎨</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">🔧</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">👁️</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">📊</div>
+          </DockIcon>
+          <DockIcon>
+            <div className="w-6 h-6 text-2xl flex items-center justify-center">⚙️</div>
+          </DockIcon>
+        </Dock>
+      </div>
     </div>
   )
 }
