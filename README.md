@@ -198,7 +198,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **X (Twitter)**: [@not_chalant](https://x.com/not_chalant)
 
 ### David Van Story
-- **Email**: [D.vanstory01@gmail.com](mailto:D.vanstory01@gmail.com)
+- **X (Twitter)**: [@DaveVanStory](https://x.com/DaveVanStory))
+- **LinkedIn**: (www.linkedin.com/in/davidvanstory)
+- **GitHub**: (https://github.com/davidvanstory)
 
 ### Mary Smith
 - **Email**: [mary.smith@gauntletai.com](mailto:mary.smith@gauntletai.com)
