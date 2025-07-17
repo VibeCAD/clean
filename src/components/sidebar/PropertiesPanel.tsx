@@ -1,7 +1,7 @@
 import React from 'react';
 import { Vector3 } from 'babylonjs';
 import { useSceneStore } from '../../state/sceneStore';
-import type { SceneObject, ModularHousingObject, Door, Window, Wall } from '../../types/types';
+import type { SceneObject } from '../../types/types';
 import { TextureUpload } from './TextureUpload';
 import { TextureLibrary } from './TextureLibrary';
 

@@ -1,10 +1,10 @@
 import { Vector3, Mesh } from 'babylonjs';
 import type { SceneObject } from '../types/types';
-import { spaceOptimizer, type OptimizationResult, type OptimizationStrategy, type PlacementLayout } from '../algorithms/spaceOptimization';
+import { spaceOptimizer, type OptimizationResult, type OptimizationStrategy } from '../algorithms/spaceOptimization';
 import { furnitureDatabase, type FurnitureSpec } from '../data/furnitureDatabase';
-import { roomAnalysisService, type RoomAnalysisResult, type PlacementZone } from './roomAnalysisService';
+import { roomAnalysisService, type RoomAnalysisResult } from './roomAnalysisService';
 import { placementConstraintsService, type PlacementValidationResult } from './placementConstraintsService';
-import { furnitureAssociationService, type FurnitureAssociation } from './furnitureAssociationService';
+import { furnitureAssociationService } from './furnitureAssociationService';
 
 export interface LayoutTemplate {
   id: string;

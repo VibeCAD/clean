@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo, useState } from 'react'
-import { Vector3, Vector2, StandardMaterial, Color3, Mesh, PolygonMeshBuilder, DynamicTexture } from 'babylonjs'
+import { Vector3, Vector2, StandardMaterial, Color3, Mesh, DynamicTexture } from 'babylonjs'
 import { computeCompositeBoundary, generateDefaultConnectionPoints } from './babylon/boundaryUtils'
 import { createFullGridTexture, calculateFullGridUVScale } from './babylon/gridTextureUtils'
 import type { ConnectionPoint } from './types/types'
@@ -27,19 +27,18 @@ import { BorderBeam } from './components/magicui/border-beam'
 import { DockCard } from './components/magicui/dock-card'
 
 // Import Lucide React icons
-import { Eye, Move, Palette, TestTubeDiagonal, WandSparkles, WandSparklesIcon, Wrench, MousePointer2, RotateCw, Scale, Sparkles, Bot, Zap, Brush, PaintBucket, Droplets, Settings, Grid3x3, Shield, Camera, Square, Globe, Box } from 'lucide-react'
+import { Eye, Move, Palette, TestTubeDiagonal, WandSparkles, WandSparklesIcon, Wrench, MousePointer2, RotateCw, Scale, Sparkles, Bot, Zap, Brush, PaintBucket, Droplets, Settings, Grid3x3, Shield, Camera, Square, Globe } from 'lucide-react'
 
 // Import the keyboard shortcuts hook
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 
-// Import the TopToolbar component
-import { TopToolbar } from './components/toolbar/TopToolbar'
+
 
 import { useSceneStore } from './state/sceneStore'
-import type { SceneObject, PrimitiveType, TransformMode, ControlPointVisualization } from './types/types'
+import type { SceneObject, PrimitiveType } from './types/types'
 import { CustomRoomModal } from './components/modals/CustomRoomModal'
 import { SelectionModeIndicator } from './components/ui/SelectionModeIndicator'
-import { SelectionInfoDisplay } from './components/ui/SelectionInfoDisplay'
+
 // import { UndoRedoIndicator } from './components/ui/UndoRedoIndicator'
 import { MeshBuilder } from 'babylonjs'
 import FloatingChatModal from './components/chat/FloatingChatModal'
@@ -134,20 +133,11 @@ function App() {
     isLoading,
     apiKey,
     showApiKeyInput,
-    responseLog,
     wireframeMode,
-    hoveredObjectId,
-    multiSelectMode,
     snapToGrid,
     gridSize,
     objectLocked,
     showGrid,
-    objectVisibility,
-    multiSelectPivot,
-    gridMesh,
-    multiSelectInitialStates,
-    textInput,
-    sidebarCollapsed,
     activeDropdown,
     collisionDetectionEnabled,
     snapToObjects,
@@ -157,7 +147,6 @@ function App() {
     moveToMode,
 
     // Actions
-    setSceneObjects,
     setSelectedObjectId,
     setSelectedObjectIds,
     setTransformMode,
@@ -168,21 +157,11 @@ function App() {
     addToResponseLog,
     setWireframeMode,
     setShowGrid,
-    setHoveredObjectId,
-    setMultiSelectMode,
     setSnapToGrid,
     setGridSize,
     setObjectVisibility,
     setObjectLocked,
-    setMultiSelectPivot,
-    setGridMesh,
-    setMultiSelectInitialStates,
-    setTextInput,
-    setSidebarCollapsed,
     setActiveDropdown,
-    setResponseLog,
-    clearSelection,
-    clearAllObjects,
     updateObject,
     addObject,
     removeObject,
@@ -195,8 +174,6 @@ function App() {
     
     // Getters from store (for checking object status)
     hasSelection,
-    isObjectLocked,
-    isObjectVisible,
   } = useSceneStore();
   // --- END: Reading state from the Zustand store ---
 
@@ -222,14 +199,7 @@ function App() {
    */
   // Scene objects are now managed by the useBabylonScene hook
 
-  // The application no longer supports NURBS control-points.  We define inert
-  // placeholders so that the few remaining references compile but have no
-  // runtime effect.
-  const selectedControlPointMesh: Mesh | null = null
-  const selectedControlPointIndex: number | null = null
-  // No-op stubs replacing the old setters
-  const setSelectedControlPointMesh = (_?: any) => {}
-  const setSelectedControlPointIndex = (_?: any) => {}
+  // The application no longer supports NURBS control-points.
 
   // OpenAI client initialization is now handled by the AI service
 
@@ -815,55 +785,9 @@ function App() {
     setActiveDropdown(null);
   }
 
-  const duplicateObject = () => {
-    if (!selectedObject || !sceneInitialized) return
 
-    const newId = `${selectedObject.type}-${Date.now()}`
-    
-    console.log('Duplicating object:', selectedObject.id, 'as', newId)
 
-    // Compute new position with optional grid snapping
-    const offsetPosition = selectedObject.position.clone().add(new Vector3(2, 0, 0))
-    const snappedPosition = snapToGrid ? sceneAPI.snapToGrid(offsetPosition) : offsetPosition
 
-    const newObj: SceneObject = {
-      id: newId,
-      type: selectedObject.type,
-      position: snappedPosition,
-      scale: selectedObject.scale.clone(),
-      rotation: selectedObject.rotation.clone(),
-      color: selectedObject.color,
-      isNurbs: selectedObject.isNurbs,
-      verbData: selectedObject.isNurbs ? selectedObject.verbData : undefined
-    }
-
-    // --- Special handling for mesh-based types that cannot be recreated via the factory (e.g. custom-room) ---
-    if (selectedObject.type === 'custom-room') {
-      const sceneManager = sceneAPI.getSceneManager()
-      const originalMesh = sceneManager?.getMeshById(selectedObject.id)
-      if (sceneManager && originalMesh) {
-        const clonedMesh = originalMesh.clone(newId, null, false) as Mesh
-        clonedMesh.position = snappedPosition.clone()
-        sceneManager.addPreExistingMesh(clonedMesh, newId)
-        newObj.mesh = clonedMesh
-      }
-    }
-
-    addObject(newObj)
-    setSelectedObjectId(newId)
-    setActiveDropdown(null)
-  }
-
-  const deleteSelectedObject = () => {
-    if (!selectedObject) return
-
-    console.log('🗑️ Deleting object:', selectedObject.id)
-    
-    removeObject(selectedObject.id)
-    setSelectedObjectId(null)
-    setActiveDropdown(null)
-    console.log('✅ Deleted object')
-  }
 
 
   // TODO: fix store useage here
@@ -920,109 +844,7 @@ function App() {
 
   // Visual grid, multi-select pivot, and transform operations are now handled by the useBabylonScene hook
 
-  // Select all objects
-  const selectAllObjects = () => {
-    const selectableObjects = sceneObjects.filter(obj => obj.type !== 'ground' && !objectLocked[obj.id])
-    setSelectedObjectIds(selectableObjects.map(obj => obj.id))
-    setSelectedObjectId(null)
-    setActiveDropdown(null)
-    console.log('🔍 Selected all objects')
-  }
 
-  // Deselect all objects
-  const deselectAllObjects = () => {
-    setSelectedObjectId(null)
-    setSelectedObjectIds([])
-    setActiveDropdown(null)
-    console.log('🔍 Deselected all objects')
-  }
-
-  // Invert selection
-  const invertSelection = () => {
-    const selectableObjects = sceneObjects.filter(obj => obj.type !== 'ground' && !objectLocked[obj.id])
-    const currentlySelected = selectedObjectIds
-    const newSelection = selectableObjects.filter(obj => !currentlySelected.includes(obj.id)).map(obj => obj.id)
-    setSelectedObjectIds(newSelection)
-    setSelectedObjectId(null)
-    setActiveDropdown(null)
-    console.log('🔍 Inverted selection')
-  }
-
-
-
-  // Reset transform for selected objects
-  const resetTransforms = () => {
-    const objectsToReset = selectedObjectId ? [selectedObjectId] : selectedObjectIds;
-    const defaultPosition = new Vector3(0, 1, 0);
-    const defaultRotation = new Vector3(0, 0, 0);
-    const defaultScale = new Vector3(1, 1, 1);
-    
-    objectsToReset.forEach(id => {
-        updateObject(id, {
-            position: defaultPosition,
-            rotation: defaultRotation,
-            scale: defaultScale
-        });
-    });
-  }
-
-  // Duplicate selected objects
-  const duplicateSelectedObjects = () => {
-    if (!sceneInitialized) return
-    
-    const objectsToDuplicate = selectedObjectId ? [selectedObjectId] : selectedObjectIds
-    const newObjects: SceneObject[] = []
-    
-    objectsToDuplicate.forEach(objectId => {
-      const originalObject = sceneObjects.find(obj => obj.id === objectId)
-      if (!originalObject) return
-      
-      const newId = `${originalObject.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      
-      // Copy properties and offset position
-      const offsetPosition = originalObject.position.clone().add(new Vector3(2, 0, 0))
-      const snappedPosition = snapToGrid ? sceneAPI.snapToGrid(offsetPosition) : offsetPosition
-      
-      const newObj: SceneObject = {
-        id: newId,
-        type: originalObject.type,
-        position: snappedPosition,
-        scale: originalObject.scale.clone(),
-        rotation: originalObject.rotation.clone(),
-        color: originalObject.color,
-        isNurbs: originalObject.isNurbs,
-        verbData: originalObject.isNurbs ? originalObject.verbData : undefined
-      }
-      
-      // Handle custom-room duplication by cloning the existing mesh hierarchy
-      if (originalObject.type === 'custom-room') {
-        const sceneManager = sceneAPI.getSceneManager()
-        const originalMesh = sceneManager?.getMeshById(originalObject.id)
-        if (sceneManager && originalMesh) {
-          const clonedMesh = originalMesh.clone(newId, null, false) as Mesh
-          clonedMesh.position = snappedPosition.clone()
-          sceneManager.addPreExistingMesh(clonedMesh, newId)
-          newObj.mesh = clonedMesh
-        }
-      }
-      
-      newObjects.push(newObj)
-    })
-    
-    newObjects.forEach(addObject)
-    
-    // Select the new objects
-    if (newObjects.length === 1) {
-      setSelectedObjectId(newObjects[0].id)
-      setSelectedObjectIds([])
-    } else {
-      setSelectedObjectIds(newObjects.map(obj => obj.id))
-      setSelectedObjectId(null)
-    }
-    
-    setActiveDropdown(null)
-    console.log('📋 Duplicated selected objects')
-  }
 
   // Scene initialization is now handled by the useBabylonScene hook
 

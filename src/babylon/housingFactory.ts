@@ -1,6 +1,6 @@
 import { Scene, MeshBuilder, StandardMaterial, Color3, Mesh, Vector3, CSG } from 'babylonjs';
 import type { MeshCreationOptions } from './objectFactory';
-import type { Wall, Door, Window, HousingComponent, ModularHousingObject, DoorType, WindowType, WallType } from '../types/types';
+import type { Wall, Door, Window, ModularHousingObject, DoorType, WindowType } from '../types/types';
 
 /**
  * Creates a wall mesh with specified dimensions and properties

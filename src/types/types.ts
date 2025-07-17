@@ -207,6 +207,9 @@ export interface SceneObject {
         lineColor?: string  // Color of grid lines
         showSubGrid?: boolean  // Whether to show sub-grid divisions
     }
+    
+    // Metadata for additional object information
+    metadata?: any
 }
 
 // NURBS control point visualization data

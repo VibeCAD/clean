@@ -3,7 +3,7 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import type { MotionProps } from "motion/react";
+
 import { cn } from "../../lib/utils";
 import { BorderBeam } from "./border-beam";
 import { Move, RotateCw, Scale, MousePointer2 } from "lucide-react";
