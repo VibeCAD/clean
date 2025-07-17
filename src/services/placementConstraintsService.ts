@@ -1,7 +1,7 @@
 import { Vector3, Mesh } from 'babylonjs';
 import type { SceneObject } from '../types/types';
 import { furnitureDatabase, type FurnitureSpec } from '../data/furnitureDatabase';
-import { roomAnalysisService, type RoomAnalysisResult, type RoomConstraint, type PlacementZone } from './roomAnalysisService';
+import { roomAnalysisService, type RoomAnalysisResult, type RoomConstraint } from './roomAnalysisService';
 
 export interface PlacementConstraint {
   id: string;

@@ -1,4 +1,4 @@
-import { Scene, Mesh, Vector3 } from 'babylonjs';
+import { Scene, Mesh } from 'babylonjs';
 import 'babylonjs-serializers';
 import type { SceneObject } from '../types/types';
 

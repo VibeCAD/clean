@@ -541,7 +541,7 @@ export class SpaceVisualizationUtils {
       let mesh: Mesh;
       
       if (violation.severity === 'error') {
-        mesh = MeshBuilder.CreateOctahedron(`violation-${violation.id}`, {
+        mesh = MeshBuilder.CreatePolyhedron(`violation-${violation.id}`, {
           size: 0.3
         }, this.scene);
       } else if (violation.severity === 'warning') {
@@ -728,7 +728,7 @@ export class SpaceVisualizationUtils {
       }, this.scene);
       
       const context = dynamicTexture.getContext();
-      const imageData = context.createImageData(textureSize, textureSize);
+      const imageData = context.getImageData(0, 0, textureSize, textureSize);
       
       // Generate heat map data
       for (let x = 0; x < textureSize; x++) {

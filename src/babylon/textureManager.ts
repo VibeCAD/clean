@@ -1,5 +1,5 @@
-import { Scene, Texture, StandardMaterial, PBRMaterial, BaseTexture } from 'babylonjs';
-import type { TextureAsset, TextureType } from '../types/types';
+import { Scene, Texture, StandardMaterial, PBRMaterial } from 'babylonjs';
+import type { TextureAsset } from '../types/types';
 
 /**
  * TextureManager handles loading, caching, and application of textures in the Babylon.js scene

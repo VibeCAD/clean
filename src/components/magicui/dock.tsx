@@ -9,12 +9,12 @@ import {
   useTransform,
 } from "motion/react";
 import type { MotionProps } from "motion/react";
-import React, { useRef, useState, useEffect } from "react";
-import { createPortal } from "react-dom";
+import React, { useRef } from "react";
+
 import type { PropsWithChildren } from "react";
 
 import { cn } from "../../lib/utils";
-import { DockCard } from "./dock-card";
+
 
 export interface DockProps extends VariantProps<typeof dockVariants> {
   className?: string;

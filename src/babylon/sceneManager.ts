@@ -17,7 +17,7 @@ import {
   Texture,
   SceneLoader
 } from 'babylonjs'
-import type { SceneObject, PrimitiveType, TransformMode, ConnectionPoint, TextureAsset, TextureType } from '../types/types'
+import type { SceneObject, TransformMode, ConnectionPoint, TextureAsset } from '../types/types'
 import { createHousingMesh } from './housingFactory'
 import { createRectangle } from './objectFactory'
 import { TextureManager } from './textureManager'

@@ -441,7 +441,7 @@ export const useSceneStore = create<SceneState & SceneActions>()(
                 }
 
                 pushUndoAction(createRenameAction(newId, oldId, objectToRename))
-                get()._renameObject(oldId, newId)
+                get().renameObject(oldId, newId)
             },
             
             setSceneObjects: (objects) => set({ sceneObjects: objects }),
@@ -1204,7 +1204,7 @@ export const useSceneStore = create<SceneState & SceneActions>()(
                         get().setObjectVisibility(action.payload.objectId, action.payload.oldVisible)
                         break
                     case 'BATCH_DELETE':
-                        action.payload.objects.forEach(obj => get().addObject(obj))
+                        action.payload.objects.forEach((obj: any) => get().addObject(obj))
                         break
                 }
             }

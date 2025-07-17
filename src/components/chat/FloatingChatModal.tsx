@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, MessageCircle, Send, Mic, MicOff, Bot, User, Plus, Move, Palette, Trash2, PenTool } from 'lucide-react';
+import { X, MessageCircle, Plus, Move, Palette, Trash2, PenTool } from 'lucide-react';
 import { Vector3 } from 'babylonjs';
 import { Button } from '@/components/ui/button';
 import { ChatInput } from '@/components/ui/chat/chat-input';
